@@ -59,7 +59,7 @@
                 No se encontraron expedientes con esa búsqueda.
               </td>
             </tr>
-            <tr v-for="caso in casosFiltrados" :key="caso.id">
+            <tr v-for="caso in casosPaginados" :key="caso.id">
               <td>
                 <div class="resaltado">{{ caso.titulo }}</div>
                 <div class="expediente-num">
@@ -97,6 +97,30 @@
             </tr>
           </tbody>
         </table>
+
+        <div class="paginacion-footer" v-if="casosFiltrados.length > 0">
+          <div class="paginacion-info">
+            Mostrando {{ inicioPaginacion }} a {{ finPaginacion }} de {{ casosFiltrados.length }}
+          </div>
+          <div class="paginacion-controles">
+            <button 
+              @click="paginaActual--" 
+              :disabled="paginaActual === 1" 
+              class="btn-paginacion"
+            >
+              Anterior
+            </button>
+            <span class="paginacion-texto">{{ paginaActual }} / {{ totalPaginas }}</span>
+            <button 
+              @click="paginaActual++" 
+              :disabled="paginaActual === totalPaginas" 
+              class="btn-paginacion"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -171,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -189,6 +213,15 @@ const formEditar = ref({
   estatus_id: "",
   numero_expediente_judicial: "",
   descripcion: "",
+});
+
+// NUEVO: Variables de estado para Paginación
+const paginaActual = ref(1);
+const elementosPorPagina = ref(6); // Límite exacto de tu tabla de Clientes
+
+// NUEVO: Resetear a la página 1 cuando el usuario busca algo
+watch(filtroBusqueda, () => {
+  paginaActual.value = 1;
 });
 
 // Función para navegar a la pantalla de crear
@@ -294,6 +327,29 @@ const casosFiltrados = computed(() => {
     );
   });
 });
+
+// NUEVO: Propiedades Computadas para la Paginación
+const totalPaginas = computed(() => {
+  return Math.ceil(casosFiltrados.value.length / elementosPorPagina.value) || 1;
+});
+
+const casosPaginados = computed(() => {
+  const inicio = (paginaActual.value - 1) * elementosPorPagina.value;
+  const fin = inicio + elementosPorPagina.value;
+  return casosFiltrados.value.slice(inicio, fin);
+});
+
+// NUEVO: Cálculos para el texto visual "Mostrando 1 a 6"
+const inicioPaginacion = computed(() => {
+  if (casosFiltrados.value.length === 0) return 0;
+  return ((paginaActual.value - 1) * elementosPorPagina.value) + 1;
+});
+
+const finPaginacion = computed(() => {
+  const fin = paginaActual.value * elementosPorPagina.value;
+  return fin > casosFiltrados.value.length ? casosFiltrados.value.length : fin;
+});
+
 </script>
 
 <style scoped>
@@ -464,6 +520,51 @@ const casosFiltrados = computed(() => {
 }
 .btn-accion:hover {
   background: #f5f5f5;
+}
+
+/* ====================================================
+   ESTILOS PARA LA PAGINACIÓN (Basado en vista Clientes)
+   ==================================================== */
+.paginacion-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--primary); /* Fondo claro de la tarjeta */
+  border-top: 1px solid var(--border-light);
+}
+.paginacion-info {
+  font-size: 0.9rem;
+  color: #555;
+}
+.paginacion-controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paginacion-texto {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-size: 0.95rem;
+}
+.btn-paginacion {
+  background-color: transparent;
+  color: var(--secondary);
+  border: 1px solid var(--secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-paginacion:hover:not(:disabled) {
+  background-color: var(--secondary);
+  color: white;
+}
+.btn-paginacion:disabled {
+  border-color: #ccc;
+  color: #ccc;
+  cursor: not-allowed;
 }
 
 /* ====================================================

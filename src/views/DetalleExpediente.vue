@@ -1,6 +1,5 @@
 <template>
   <div class="clientes-contenedor">
-    
     <div class="cabecera-seccion">
       <div class="header-text">
         <button @click="regresar" class="btn-regresar">
@@ -9,7 +8,7 @@
         <h2 v-if="expediente">{{ expediente.titulo }}</h2>
         <h2 v-else>Cargando expediente...</h2>
         <p class="subtitulo" v-if="expediente">
-          Juzgado: {{ expediente.numero_expediente_judicial || 'Sin asignar' }}
+          Juzgado: {{ expediente.numero_expediente_judicial || "Sin asignar" }}
         </p>
       </div>
       <button class="btn-secundario" v-if="expediente">
@@ -22,41 +21,43 @@
     </div>
 
     <div v-else-if="expediente" class="tarjeta-sistema">
-      
       <div class="resumen-rapido">
         <div class="dato-pill">
           <span class="label">Estatus:</span>
-          <span class="badge-estatus activo">Activo</span> </div>
+          <span class="badge-estatus activo">Activo</span>
+        </div>
         <div class="dato-pill">
           <span class="label">Prioridad:</span>
-          <span class="valor">🔥 {{ expediente.prioridad || 'Media' }}</span>
+          <span class="valor">🔥 {{ expediente.prioridad || "Media" }}</span>
         </div>
         <div class="dato-pill">
           <span class="label">Apertura:</span>
-          <span class="valor">📅 {{ formatearFecha(expediente.fecha_apertura) }}</span>
+          <span class="valor"
+            >📅 {{ formatearFecha(expediente.fecha_apertura) }}</span
+          >
         </div>
       </div>
 
       <div class="tabs-nav">
-        <button 
+        <button
           :class="['tab-btn', { active: pestanaActiva === 'resumen' }]"
           @click="pestanaActiva = 'resumen'"
         >
           📄 Resumen
         </button>
-        <button 
+        <button
           :class="['tab-btn', { active: pestanaActiva === 'documentos' }]"
           @click="pestanaActiva = 'documentos'"
         >
           📂 Documentos
         </button>
-        <button 
+        <button
           :class="['tab-btn', { active: pestanaActiva === 'pagos' }]"
           @click="pestanaActiva = 'pagos'"
         >
           💰 Pagos
         </button>
-        <button 
+        <button
           :class="['tab-btn', { active: pestanaActiva === 'audiencias' }]"
           @click="pestanaActiva = 'audiencias'"
         >
@@ -65,51 +66,187 @@
       </div>
 
       <div class="tab-content">
-        
+        <!--TODO TAB DE RESUMEN -->
         <div v-if="pestanaActiva === 'resumen'" class="animacion-fade">
           <div class="form-grid">
-            <div class="grupo-input full">
+            <div class="group-input full">
               <label>Descripción y Hechos Iniciales</label>
               <div class="caja-texto-lectura">
-                {{ expediente.descripcion || 'Sin descripción registrada.' }}
-              </div>
-            </div>
-            
-            <div class="grupo-input mt-3">
-              <label>Cliente Vinculado</label>
-              <div class="caja-texto-lectura clickeable">
-                👤 ID Cliente: #{{ expediente.cliente_id }} 
+                {{ expediente.descripcion || "Sin descripción registrada." }}
               </div>
             </div>
 
-            <div class="grupo-input mt-3">
+            <div class="group-input mt-3">
+              <label>Cliente Vinculado</label>
+              <div class="caja-texto-lectura clickeable">
+                👤 ID Cliente: #{{ expediente.cliente_id }}
+              </div>
+            </div>
+
+            <div class="group-input mt-3">
               <label>Fecha de Cierre Esperada</label>
               <div class="caja-texto-lectura">
-                🗓️ {{ formatearFecha(expediente.fecha_cierre_esperada) || 'No definida' }}
+                🗓️
+                {{
+                  formatearFecha(expediente.fecha_cierre_esperada) ||
+                  "No definida"
+                }}
               </div>
             </div>
           </div>
         </div>
 
+        <!--TODO TAB DE DOCUMENTOS -->
         <div v-if="pestanaActiva === 'documentos'" class="animacion-fade">
           <div class="tab-header-accion">
             <h3>Archivos del Expediente</h3>
-            <button class="btn-primario mini">+ Subir PDF</button>
+            <button @click="mostrarModalDoc = true" class="btn-primario mini">
+              + Subir Documento
+            </button>
           </div>
-          <div class="vacio">
+
+          <div
+            v-if="listaDocumentos.length > 0"
+            class="responsive-table-container mt-3"
+          >
+            <table class="tabla-profesional">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Archivos</th>
+                  <th>Fecha de Carga</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="doc in listaDocumentos" :key="doc.id">
+                  <td>
+                    <span class="tag-materia">{{ doc.tipo }}</span>
+                  </td>
+                  <td class="resaltado">{{ doc.nombre }}</td>
+                  <td>{{ formatearFecha(doc.fecha) }}</td>
+                  <td class="text-center">
+                    <a
+                      :href="`http://localhost:3000${doc.ruta_url}`"
+                      target="_blank"
+                      class="btn-accion view"
+                      title="Ver"
+                      style="text-decoration: none"
+                    >
+                      👁️
+                    </a>
+                    <button class="btn-accion delete" title="Eliminar">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="vacio">
             <span class="icon-large">📂</span>
             <p>Aún no hay documentos subidos a este caso.</p>
           </div>
         </div>
 
+        <!--TODO TAB DE PAGOS -->
         <div v-if="pestanaActiva === 'pagos'" class="animacion-fade">
+          <!--? REGISTRAR PAGO BOTON -->
           <div class="tab-header-accion">
-            <h3>Control Financiero</h3>
-            <button class="btn-primario mini">+ Registrar Pago</button>
+            <h3>Control Financiero del Expediente</h3>
+            <button @click="abrirNuevoPago" class="btn-primario mini">
+              + Registrar Cobro/Pago
+            </button>
           </div>
-          <div class="vacio">
+
+          <!--? KPI's -->
+          <div class="dashboard-financiero mb-4">
+            <div class="widget-finanzas pagado">
+              <span class="widget-titulo">Total Pagado</span>
+              <span class="widget-monto">{{
+                formatoMoneda(resumenFinanciero.pagado)
+              }}</span>
+            </div>
+            <div class="widget-finanzas pendiente">
+              <span class="widget-titulo">Saldo Pendiente</span>
+              <span class="widget-monto">{{
+                formatoMoneda(resumenFinanciero.pendiente)
+              }}</span>
+            </div>
+            <div class="widget-finanzas total">
+              <span class="widget-titulo">Valor Total del Caso</span>
+              <span class="widget-monto">{{
+                formatoMoneda(
+                  resumenFinanciero.pagado + resumenFinanciero.pendiente,
+                )
+              }}</span>
+            </div>
+          </div>
+
+          <!--? LISTA PAGOS -->
+          <div v-if="listaPagos.length > 0" class="responsive-table-container">
+            <table class="tabla-profesional">
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th>Tipo / Frecuencia</th>
+                  <th>Fecha Límite</th>
+                  <th>Monto</th>
+                  <th>Metodo de Pago</th>
+                  <th>Estatus</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="pago in listaPagos" :key="pago.id">
+                  <td class="resaltado">{{ pago.concepto }}</td>
+                  <td>
+                    <span class="tag-asunto">{{ pago.tipo }}</span>
+                  </td>
+                  <td>{{ formatearFecha(pago.fecha_vencimiento) }}</td>
+
+                  <td class="resaltado">{{ formatoMoneda(pago.monto) }}</td>
+                  <td>{{ pago.metodo_pago }}</td>
+                  <td>
+                    <span
+                      :class="['badge-estatus', pago.estatus.toLowerCase()]"
+                    >
+                      {{ pago.estatus }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button
+                      @click="verDetallesPago(pago)"
+                      class="btn-accion view"
+                      title="Ver Detalles y Comprobante"
+                    >
+                      👁️
+                    </button>
+                    <button
+                      @click="editarPago(pago)"
+                      class="btn-accion edit"
+                      title="Registrar abono o marcar pagado"
+                    >
+                      ✅
+                    </button>
+                    <button
+                      @click="borrarPago(pago.id)"
+                      class="btn-accion delete"
+                      title="Eliminar registro"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!--? LISTA PAGOS VACIA -->
+          <div v-else class="vacio">
             <span class="icon-large">💵</span>
-            <p>No hay registro de pagos o anticipos para este cliente.</p>
+            <p>No hay registro de cobros o anticipos para este expediente.</p>
           </div>
         </div>
 
@@ -123,46 +260,681 @@
             <p>No hay audiencias programadas en el juzgado.</p>
           </div>
         </div>
-
       </div>
+    </div>
 
+    <!--TODO MODAL DE DOCUMNTOS -->
+    <div v-if="mostrarModalDoc" class="modal-overlay">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3>Subir Archivos al Expediente</h3>
+          <button @click="cerrarModalDoc" class="btn-close">&times;</button>
+        </header>
+
+        <form
+          @submit.prevent="subirDocumento"
+          class="form-grid"
+          style="margin-top: 15px"
+        >
+          <div class="group-input full">
+            <label>Clasificación del Documento *</label>
+            <select v-model="formDoc.tipo" class="input-select" required>
+              <option value="" disabled>Selecciona el tipo...</option>
+              <option
+                v-for="tipo in tiposDeDocumentos"
+                :key="tipo"
+                :value="tipo"
+              >
+                {{ tipo }}
+              </option>
+            </select>
+          </div>
+
+          <div class="group-input full mt-2">
+            <label>Seleccionar Archivos (Puedes elegir varios) *</label>
+            <input
+              type="file"
+              @change="manejarArchivos"
+              class="input-select file-input"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              required
+            />
+          </div>
+
+          <div class="group-input full" v-if="archivosSeleccionados.length > 0">
+            <div class="lista-archivos-preview">
+              <p class="preview-titulo">Archivos listos para subir:</p>
+              <ul>
+                <li
+                  v-for="(archivo, index) in archivosSeleccionados"
+                  :key="index"
+                >
+                  📄 {{ archivo.name }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="group-input full mt-2">
+            <label>Notas adicionales (Opcional)</label>
+            <textarea
+              v-model="formDoc.notas"
+              rows="2"
+              class="input-select"
+              placeholder="Ej. Anverso y reverso de la identificación..."
+            ></textarea>
+          </div>
+
+          <footer class="modal-footer full mt-4">
+            <button
+              type="button"
+              @click="cerrarModalDoc"
+              class="btn-secundario"
+            >
+              Cancelar
+            </button>
+            <button type="submit" class="btn-primario" :disabled="subiendo">
+              {{ subiendo ? "Subiendo archivos..." : "Guardar Archivos" }}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <!--TODO MODAL DE PAGOS -->
+    <div v-if="mostrarModalPago" class="modal-overlay">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3>
+            {{
+              formPago.id
+                ? "Actualizar Cobro / Anticipo"
+                : "Registrar Cobro / Anticipo"
+            }}
+          </h3>
+          <button @click="cerrarModalPago" class="btn-close">&times;</button>
+        </header>
+
+        <form
+          @submit.prevent="guardarPago"
+          class="form-grid"
+          style="margin-top: 20px"
+        >
+          <!--* CONCEPTO COBRO -->
+          <div class="group-input full">
+            <label>Concepto del Cobro *</label>
+            <input
+              v-model="formPago.concepto"
+              type="text"
+              class="input-select"
+              placeholder="Ej. Anticipo Inicial, Iguala Mayo..."
+              required
+            />
+          </div>
+
+          <!--* TIPO DE COBRO -->
+          <div class="group-input two-columns">
+            <label>Tipo de Cobro *</label>
+            <select v-model="formPago.tipo" class="input-select" required>
+              <option value="Honorarios">Honorarios (Único)</option>
+              <option value="Iguala Mensual">Iguala Mensual</option>
+              <option value="Gastos Generales">Gastos Generales</option>
+              <option value="Costas Judiciales">Costas Judiciales</option>
+            </select>
+          </div>
+          
+         
+
+          <div class="group-input">
+            <label>Monto a Cobrar (MXN) *</label>
+            <input
+              v-model="formPago.monto"
+              type="number"
+              step="0.01"
+              class="input-select"
+              placeholder="Ej. 5000.00"
+              required
+            />
+          </div>
+
+          <div class="group-input">
+            <label>Fecha de Vencimiento *</label>
+            <input
+              v-model="formPago.fecha_vencimiento"
+              type="date"
+              class="input-select"
+              required
+            />
+          </div>
+
+          <div class="group-input">
+            <label>Estatus Actual *</label>
+            <select v-model="formPago.estatus" class="input-select" required>
+              <option value="Pendiente">Pendiente de Pago</option>
+              <option value="Pagado">Liquidado / Pagado</option>
+            </select>
+          </div>
+
+          <div class="group-input full" v-if="formPago.estatus === 'Pagado'">
+            <div
+              class="caja-texto-lectura"
+              style="
+                padding: 15px;
+                border-left: 4px solid #137333;
+                background-color: #f0fdf4;
+              "
+            >
+              <h4
+                style="margin: 0 0 15px 0; color: #166534; font-size: 0.95rem"
+              >
+                Detalles de Liquidación
+              </h4>
+
+              <div class="form-grid">
+                <div class="group-input">
+                  <label>Método de pago *</label>
+                  <select
+                    v-model="formPago.metodo_pago"
+                    class="input-select"
+                    :required="formPago.estatus === 'Pagado'"
+                  >
+                    <option value="" disabled>-- Elige una opción --</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                  </select>
+                </div>
+
+                <div class="group-input">
+                  <label>Fecha en que se Pagó *</label>
+                  <input
+                    v-model="formPago.fecha_pago"
+                    type="date"
+                    class="input-select"
+                    :required="formPago.estatus === 'Pagado'"
+                  />
+                </div>
+
+                <div class="group-input full">
+                  <label>Subir Comprobante de Pago (Opcional)</label>
+                  <input
+                    type="file"
+                    @change="manejarComprobante"
+                    class="input-select file-input"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="group-input full">
+            <label>Notas / Detalles (Opcional)</label>
+            <textarea
+              v-model="formPago.notas"
+              rows="2"
+              class="input-select"
+              placeholder="Forma de pago acordada, número de cuenta..."
+            ></textarea>
+          </div>
+
+          <footer class="modal-footer full" style="margin-top: 10px;">
+            <button
+              type="button"
+              @click="cerrarModalPago"
+              class="btn-secundario"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="btn-primario"
+              :disabled="guardandoPago"
+            >
+              {{
+                guardandoPago
+                  ? "Guardando..."
+                  : formPago.id
+                    ? "Actualizar Cobro"
+                    : "Registrar Cobro"
+              }}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="mostrarModalDetallePago" class="modal-overlay">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3>Detalle del Movimiento</h3>
+          <button @click="cerrarModalDetallePago" class="btn-close">
+            &times;
+          </button>
+        </header>
+
+        <div v-if="pagoSeleccionado" style="margin-top: 20px">
+          <div class="resumen-rapido" style="margin-bottom: 20px">
+            <div class="dato-pill">
+              <span class="label">Monto Total</span>
+              <span class="valor" style="font-size: 1.2rem">{{
+                formatoMoneda(pagoSeleccionado.monto)
+              }}</span>
+            </div>
+            <div class="dato-pill">
+              <span class="label">Estatus</span>
+              <span
+                :class="[
+                  'badge-estatus',
+                  pagoSeleccionado.estatus.toLowerCase(),
+                ]"
+              >
+                {{ pagoSeleccionado.estatus }}
+              </span>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="group-input full">
+              <label>Concepto:</label>
+              <div class="caja-texto-lectura">
+                {{ pagoSeleccionado.concepto }}
+              </div>
+            </div>
+
+            <div class="group-input">
+              <label>Tipo:</label>
+              <div class="caja-texto-lectura">{{ pagoSeleccionado.tipo }}</div>
+            </div>
+
+            <div class="group-input">
+              <label>Vencimiento:</label>
+              <div class="caja-texto-lectura">
+                {{ formatearFecha(pagoSeleccionado.fecha_vencimiento) }}
+              </div>
+            </div>
+
+            <template v-if="pagoSeleccionado.estatus === 'Pagado'">
+              <div class="group-input">
+                <label>Método:</label>
+                <div class="caja-texto-lectura">
+                  {{ pagoSeleccionado.metodo_pago || "No especificado" }}
+                </div>
+              </div>
+              <div class="group-input">
+                <label>Fecha de Pago:</label>
+                <div class="caja-texto-lectura">
+                  {{ formatearFecha(pagoSeleccionado.fecha_pago) }}
+                </div>
+              </div>
+            </template>
+
+            <div class="group-input full" v-if="pagoSeleccionado.notas">
+              <label>Notas:</label>
+              <div class="caja-texto-lectura">{{ pagoSeleccionado.notas }}</div>
+            </div>
+
+            <div class="group-input full" style="margin-top: 10px">
+              <a
+                v-if="pagoSeleccionado.comprobante_url"
+                :href="`http://localhost:3000${pagoSeleccionado.comprobante_url}`"
+                target="_blank"
+                class="btn-primario"
+                style="
+                  text-align: center;
+                  text-decoration: none;
+                  display: block;
+                "
+              >
+                📄 Ver Comprobante Adjunto
+              </a>
+              <div
+                v-else
+                class="vacio"
+                style="
+                  padding: 15px;
+                  border: 1px dashed #ccc;
+                  border-radius: 6px;
+                "
+              >
+                <p style="margin: 0; font-size: 0.85rem">
+                  No hay comprobante adjunto a este registro.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, onMounted, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
 
 const expediente = ref(null);
 const cargando = ref(true);
-const pestanaActiva = ref('resumen'); 
+const pestanaActiva = ref("resumen");
 
+// === LÓGICA DE DOCUMENTOS MULTIPLES (Mantenida intacta) ===
+const mostrarModalDoc = ref(false);
+const subiendo = ref(false);
+const archivosSeleccionados = ref([]);
+const listaDocumentos = ref([]);
 
+const tiposDeDocumentos = ref([
+  "INE",
+  "Comprobante de domicilio",
+  "Escrituras",
+  "Copias certificadas",
+  "Título de propiedad",
+  "Certificado parcelario",
+  "Testamentos",
+  "Actas",
+  "Contratos",
+  "Pagarés",
+  "Expedientes",
+  "CLG",
+  "Recibos agua y predial",
+  "Recibos",
+  "Constancia de situación fiscal",
+  "Curp",
+  "Constancias de estudio",
+  "Oficios/Notificaciones",
+  "Traslados",
+  "Poderes",
+  "Otro",
+]);
+
+const formDoc = ref({ tipo: "", notas: "" });
+
+const manejarArchivos = (event) => {
+  archivosSeleccionados.value = Array.from(event.target.files);
+};
+
+const cerrarModalDoc = () => {
+  mostrarModalDoc.value = false;
+  formDoc.value = { tipo: "", notas: "" };
+  archivosSeleccionados.value = [];
+};
+
+const cargarDocumentos = async () => {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/documentos/expediente/${route.params.id}`,
+    );
+    if (res.ok) {
+      listaDocumentos.value = await res.json();
+    }
+  } catch (error) {
+    console.error("Error al traer documentos:", error);
+  }
+};
+
+const subirDocumento = async () => {
+  if (archivosSeleccionados.value.length === 0)
+    return alert("Por favor selecciona al menos un archivo.");
+  subiendo.value = true;
+  const formData = new FormData();
+  archivosSeleccionados.value.forEach((archivo) => {
+    formData.append("archivos", archivo);
+  });
+  formData.append("tipo", formDoc.value.tipo);
+  formData.append("notas", formDoc.value.notas);
+  formData.append("expediente_id", route.params.id);
+  formData.append("subido_por", localStorage.getItem("usuario_id") || 1);
+
+  try {
+    const respuesta = await fetch("http://localhost:3000/api/documentos", {
+      method: "POST",
+      body: formData,
+    });
+    if (!respuesta.ok)
+      throw new Error("Error en el servidor al subir archivos");
+    const dataRespuesta = await respuesta.json();
+    alert(
+      `¡Éxito! ${dataRespuesta.mensaje} (${dataRespuesta.cantidad} archivos)`,
+    );
+    cerrarModalDoc();
+    await cargarDocumentos();
+  } catch (error) {
+    console.error(error);
+    alert("Error al subir los documentos.");
+    subiendo.value = false;
+  }
+};
+
+// === NUEVA LÓGICA DE PAGOS ===
+const mostrarModalPago = ref(false);
+const guardandoPago = ref(false);
+
+const mostrarModalDetallePago = ref(false);
+const pagoSeleccionado = ref(null);
+
+const verDetallesPago = (pago) => {
+  pagoSeleccionado.value = pago;
+  mostrarModalDetallePago.value = true;
+};
+const cerrarModalDetallePago = () => {
+  mostrarModalDetallePago.value = false;
+  pagoSeleccionado.value = null;
+};
+
+// Datos de prueba (Mocks) para visualizar el diseño inmediatamente
+const listaPagos = ref([]);
+const archivoComprobante = ref(null);
+
+const formPago = ref({
+  id: null,
+  concepto: "",
+  tipo: "Honorarios",
+  monto: "",
+  fecha_vencimiento: "",
+  estatus: "Pendiente",
+  metodo_pago: "",
+  fecha_pago: "",
+  notas: "",
+});
+
+const manejarComprobante = (event) => {
+  archivoComprobante.value = event.target.files[0];
+};
+
+// Calcula los totales del Dashboard Financiero en tiempo real
+const resumenFinanciero = computed(() => {
+  let pagado = 0;
+  let pendiente = 0;
+
+  listaPagos.value.forEach((p) => {
+    if (p.estatus === "Pagado") {
+      pagado += Number(p.monto);
+    } else {
+      pendiente += Number(p.monto);
+    }
+  });
+
+  return { pagado, pendiente };
+});
+
+const abrirNuevoPago = () => {
+  formPago.value = {
+    id: null,
+    concepto: "",
+    tipo: "Honorarios",
+    monto: "",
+    fecha_vencimiento: "",
+    estatus: "Pendiente",
+    metodo_pago: "",
+    fecha_pago: "",
+    notas: "",
+  };
+  archivoComprobante.value = null;
+  mostrarModalPago.value = true;
+};
+
+//EDITAR PAGO
+const editarPago = (pago) => {
+  const formatoInputDate = (fechaISO) => {
+    if (!fechaISO) return "";
+    const date = new Date(fechaISO);
+    return new Date(date.getTime() + Math.abs(date.getTimezoneOffset() * 60000))
+      .toISOString()
+      .split("T")[0];
+  };
+
+  formPago.value = {
+    id: pago.id,
+    concepto: pago.concepto,
+    tipo: pago.tipo,
+    monto: pago.monto,
+    fecha_vencimiento: formatoInputDate(pago.fecha_vencimiento),
+    estatus: pago.estatus,
+    metodo_pago: pago.metodo_pago || "",
+    fecha_pago:
+      formatoInputDate(pago.fecha_pago) || formatoInputDate(new Date()),
+    notas: pago.notas || "",
+  };
+  archivoComprobante.value = null; // No cargamos el comprobante existente, solo permitimos subir uno nuevo si es necesario
+  mostrarModalPago.value = true;
+};
+
+// BORRAR PAGO
+const borrarPago = async (idPago) => {
+  if (
+    confirm(
+      "¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer y alterará el saldo total.",
+    )
+  ) {
+    try {
+      const respuesta = await fetch(
+        `http://localhost:3000/api/pagos/${idPago}`,
+        { method: "DELETE" },
+      );
+      if (!respuesta.ok) throw new Error("Error al eliminar");
+      alert("Registro financiero eliminado.");
+      await cargarPagos(); // Recarga la tabla y recalcula los totales automáticamente
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo eliminar el registro.");
+    }
+  }
+};
+
+const cerrarModalPago = () => {
+  mostrarModalPago.value = false;
+  archivoComprobante.value = null;
+};
+
+const cargarPagos = async () => {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/pagos/${route.params.id}`,
+    );
+    if (res.ok) {
+      listaPagos.value = await res.json();
+    }
+  } catch (error) {
+    console.error("Error al traer pagos:", error);
+  }
+};
+
+const guardarPago = async () => {
+  guardandoPago.value = true;
+
+  const formData = new FormData();
+  formData.append("concepto", formPago.value.concepto);
+  formData.append("tipo", formPago.value.tipo);
+  formData.append("monto", formPago.value.monto);
+  formData.append("fecha_vencimiento", formPago.value.fecha_vencimiento);
+  formData.append("estatus", formPago.value.estatus);
+  formData.append("notas", formPago.value.notas);
+
+  if (formPago.value.estatus === "Pagado") {
+    formData.append("metodo_pago", formPago.value.metodo_pago);
+    formData.append("fecha_pago", formPago.value.fecha_pago);
+    if (archivoComprobante.value) {
+      formData.append("comprobante", archivoComprobante.value);
+    }
+  }
+
+  try {
+    const url = formPago.value.id
+      ? `http://localhost:3000/api/pagos/${formPago.value.id}`
+      : "http://localhost:3000/api/pagos";
+
+    const metodoHTTP = formPago.value.id ? "PUT" : "POST";
+
+    if (metodoHTTP === "POST") {
+      formData.append("expediente_id", route.params.id);
+      formData.append(
+        "registrado_por",
+        localStorage.getItem("usuario_id") || 1,
+      );
+    }
+
+    const respuesta = await fetch(url, {
+      method: metodoHTTP,
+      body: formData,
+    });
+
+    if (!respuesta.ok)
+      throw new Error("Error en el servidor al registrar el pago");
+
+    alert(
+      `Cobro ${metodoHTTP === "POST" ? "creado" : "actualizado"} exitosamente.`,
+    );
+
+    cerrarModalPago();
+    await cargarPagos();
+  } catch (error) {
+    console.error(error);
+    alert("Error al registrar el cobro.");
+    guardandoPago.value = false;
+  } finally {
+    guardandoPago.value = false;
+  }
+};
+
+// === UTILIDADES ===
 const formatearFecha = (fechaString) => {
   if (!fechaString) return null;
-  const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
-  return new Date(fechaString).toLocaleDateString('es-MX', opciones);
+  const opciones = { year: "numeric", month: "long", day: "numeric" };
+  // Ajuste de zona horaria básico para evitar desfases de días
+  const date = new Date(fechaString);
+  return new Date(
+    date.getTime() + Math.abs(date.getTimezoneOffset() * 60000),
+  ).toLocaleDateString("es-MX", opciones);
+};
+
+const formatoMoneda = (monto) => {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(monto);
 };
 
 const regresar = () => {
-  router.push('/expedientes');
+  router.push("/expedientes");
 };
 
 onMounted(async () => {
   try {
-  
-    const id = route.params.id; 
-  
-    const respuesta = await fetch(`http://localhost:3000/api/expedientes/${id}`);
-    
+    const id = route.params.id;
+    const respuesta = await fetch(
+      `http://localhost:3000/api/expedientes/${id}`,
+    );
+
     if (!respuesta.ok) throw new Error("No se pudo cargar el expediente");
-    
     expediente.value = await respuesta.json();
-    
+
+    await cargarDocumentos();
+
+    await cargarPagos();
   } catch (error) {
     console.error(error);
     alert("Error al cargar los datos del expediente.");
@@ -175,34 +947,114 @@ onMounted(async () => {
 
 <style scoped>
 /* ====================================================
-   ESTILOS BASE (Tus clases existentes)
+   ESTILOS BASE (Tus clases existentes se mantienen)
    ==================================================== */
-.clientes-contenedor { padding: 20px; }
-.cabecera-seccion { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-.header-text h2 { color: var(--primary-dark); font-size: 1.8rem; margin: 10px 0 5px 0; }
-.subtitulo { color: #666; margin: 0; font-family: monospace; font-size: 1rem;}
-.tarjeta-sistema { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.estado-msg { text-align: center; padding: 50px; font-size: 1.2rem; color: #666; }
+.clientes-contenedor {
+  padding: 20px;
+}
+.cabecera-seccion {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.header-text h2 {
+  color: var(--primary-dark);
+  font-size: 1.8rem;
+  margin: 10px 0 5px 0;
+}
+.subtitulo {
+  color: #666;
+  margin: 0;
+  font-family: monospace;
+  font-size: 1rem;
+}
+.tarjeta-sistema {
+  background: white;
+  border-radius: 10px;
+  padding: 30px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+.estado-msg {
+  text-align: center;
+  padding: 50px;
+  font-size: 1.2rem;
+  color: #666;
+}
+.btn-regresar {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 5px;
+  font-size: 1.2rem;
+  transition: color 0.2s;
+}
+.btn-regresar:hover {
+  color: var(--secondary);
+}
+.btn-primario {
+  background-color: var(--secondary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primario:hover {
+  background-color: var(--terciary);
+}
+.btn-primario.mini {
+  padding: 8px 15px;
+  font-size: 0.85rem;
+}
+.btn-secundario {
+  background-color: white;
+  color: var(--primary-dark);
+  border: 1px solid #ccc;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
-/* Botones */
-.btn-regresar { background: none; border: none; color: #666; cursor: pointer; font-weight: 600; padding: 0; margin-bottom: 5px; font-size: 0.9rem; transition: color 0.2s;}
-.btn-regresar:hover { color: var(--secondary); }
-.btn-primario { background-color: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-.btn-primario:hover { background-color: var(--terciary); }
-.btn-primario.mini { padding: 8px 15px; font-size: 0.85rem; }
-.btn-secundario { background-color: white; color: var(--primary-dark); border: 1px solid #ccc; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+/* Resumen Rápido */
+.resumen-rapido {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 4px solid var(--secondary);
+}
+.dato-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 20px;
+  border-right: 1px solid #ddd;
+}
+.dato-pill:last-child {
+  border-right: none;
+}
+.dato-pill .label {
+  font-size: 0.75rem;
+  color: #777;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.dato-pill .valor {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-size: 0.95rem;
+}
 
-/* Resumen Rápido Superior */
-.resumen-rapido { display: flex; gap: 15px; margin-bottom: 30px; padding: 15px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid var(--secondary);}
-.dato-pill { display: flex; flex-direction: column; gap: 4px; padding-right: 20px; border-right: 1px solid #ddd;}
-.dato-pill:last-child { border-right: none; }
-.dato-pill .label { font-size: 0.75rem; color: #777; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;}
-.dato-pill .valor { font-weight: 600; color: var(--primary-dark); font-size: 0.95rem;}
-.badge-estatus.activo { background-color: rgba(133, 57, 83, 0.1); color: var(--secondary); padding: 3px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: 700;}
-
-/* ====================================================
-   SISTEMA DE PESTAÑAS (TABS)
-   ==================================================== */
+/* Pestañas */
 .tabs-nav {
   display: flex;
   border-bottom: 2px solid #eee;
@@ -220,31 +1072,336 @@ onMounted(async () => {
   border-bottom: 3px solid transparent;
   transition: all 0.3s ease;
 }
-.tab-btn:hover { color: var(--terciary); }
+.tab-btn:hover {
+  color: var(--terciary);
+}
 .tab-btn.active {
   color: var(--secondary);
   border-bottom-color: var(--secondary);
 }
+.tab-content {
+  min-height: 250px;
+}
+.animacion-fade {
+  animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-.tab-content { min-height: 250px; }
-.animacion-fade { animation: fadeIn 0.3s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+/* Elementos Internos */
+.tab-header-accion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed #eee;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.tab-header-accion h3 {
+  margin: 0;
+  color: var(--terciary);
+  font-size: 1.2rem;
+}
+.caja-texto-lectura {
+  padding: 15px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  color: #444;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+.caja-texto-lectura.clickeable {
+  cursor: pointer;
+  color: var(--secondary);
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.caja-texto-lectura.clickeable:hover {
+  background: #f0f0f0;
+}
+.vacio {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+}
+.icon-large {
+  font-size: 3rem;
+  opacity: 0.5;
+  margin-bottom: 10px;
+  display: block;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+.group-input {
+  display: flex;
+  flex-direction: column;
+}
+.group-input.full {
+  grid-column: 1 / -1;
+}
 
-/* Elementos Internos de Pestañas */
-.tab-header-accion { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; margin-bottom: 20px;}
-.tab-header-accion h3 { margin: 0; color: var(--terciary); font-size: 1.2rem;}
+.group-input.two-columns {
+  grid-column: span 2;
+}
 
-.caja-texto-lectura { padding: 15px; background: #fafafa; border: 1px solid #eee; border-radius: 6px; color: #444; line-height: 1.5; font-size: 0.95rem;}
-.caja-texto-lectura.clickeable { cursor: pointer; color: var(--secondary); font-weight: 600; transition: background 0.2s;}
-.caja-texto-lectura.clickeable:hover { background: #f0f0f0; }
+.group-input.tree-columns {
+  grid-column: span 3;
+}
 
-.vacio { text-align: center; padding: 40px 20px; color: #888; }
-.icon-large { font-size: 3rem; opacity: 0.5; margin-bottom: 10px; display: block;}
+.group-input label {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+.mb-4 {
+  margin-bottom: 25px;
+}
 
+/* TABLA Y MODAL */
+.responsive-table-container {
+  overflow-x: auto;
+}
+.tabla-profesional {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.tabla-profesional th {
+  background-color: var(--primary);
+  padding: 12px 15px;
+  color: var(--primary-dark);
+  font-weight: 600;
+  border-bottom: 2px solid #ddd;
+}
+.tabla-profesional td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+.resaltado {
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+.tag-materia,
+.tag-asunto {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 3px;
+  margin-right: 5px;
+}
+.tag-materia {
+  background-color: rgba(97, 45, 83, 0.1);
+  color: var(--terciary);
+  font-weight: 600;
+}
+.tag-asunto {
+  background-color: #f0f0f0;
+  color: #555;
+}
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.grupo-input { display: flex; flex-direction: column; }
-.grupo-input.full { grid-column: 1 / -1; }
-.grupo-input label { font-weight: 600; color: var(--primary-dark); font-size: 0.9rem; margin-bottom: 8px; }
-.mt-3 { margin-top: 15px; }
+/* NUEVO: ESTILOS DE ESTATUS FINANCIEROS (Badges) */
+.badge-estatus {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.badge-estatus.activo {
+  background-color: rgba(133, 57, 83, 0.1);
+  color: var(--secondary);
+}
+.badge-estatus.pagado {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+.badge-estatus.pendiente {
+  background-color: #fef7e0;
+  color: #b06000;
+}
+.badge-estatus.atrasado {
+  background-color: #fce8e6;
+  color: #c5221f;
+}
+
+.btn-accion {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.btn-accion:hover {
+  background: #f5f5f5;
+}
+
+/* NUEVO: DASHBOARD FINANCIERO WIDGETS */
+.dashboard-financiero {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+.widget-finanzas {
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  border: 1px solid #eee;
+}
+.widget-titulo {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.widget-monto {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+.widget-finanzas.pagado {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.widget-finanzas.pagado .widget-titulo {
+  color: #166534;
+}
+.widget-finanzas.pagado .widget-monto {
+  color: #15803d;
+}
+
+.widget-finanzas.pendiente {
+  background-color: #fffbeb;
+  border-color: #fef08a;
+}
+.widget-finanzas.pendiente .widget-titulo {
+  color: #854d0e;
+}
+.widget-finanzas.pendiente .widget-monto {
+  color: #a16207;
+}
+
+.widget-finanzas.total {
+  background-color: rgba(133, 57, 83, 0.05);
+  border-color: rgba(133, 57, 83, 0.2);
+}
+.widget-finanzas.total .widget-titulo {
+  color: var(--secondary);
+}
+.widget-finanzas.total .widget-monto {
+  color: var(--primary-dark);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-card {
+  background: white;
+  width: 100%;
+  max-width: 800px;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+.modal-header h3 {
+  margin: 0;
+  color: var(--primary-dark);
+}
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #888;
+}
+.btn-close:hover {
+  color: var(--secondary);
+}
+.input-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: inherit;
+}
+.file-input {
+  padding: 7px;
+  background: #fafafa;
+}
+.mt-2 {
+  margin-top: 15px;
+}
+.mt-4 {
+  margin-top: 25px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.modal-footer.full {
+  grid-column: 1 / -1;
+} 
+
+/* Archivos previsualizados */
+.lista-archivos-preview {
+  background: rgba(133, 57, 83, 0.05);
+  border: 1px dashed var(--secondary);
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-top: 5px;
+}
+.preview-titulo {
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--terciary);
+}
+.lista-archivos-preview ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lista-archivos-preview li {
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>

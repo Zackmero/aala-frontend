@@ -7,6 +7,7 @@ import PortalCliente from "../views/PortalCliente.vue";
 import registrarExpediente from "../views/RegistrarExpediente.vue";
 import ListaExpedientes from "../views/ListaExpedientes.vue";
 import DetalleExpediente from "../views/DetalleExpediente.vue";
+import ListaPagos from "../views/listaPagos.vue";
 
 const routes = [
   { path: "/login", name: "Login", component: Login },
@@ -20,6 +21,12 @@ const routes = [
     path: "/clientes",
     name: "Clientes",
     component: ListaClientes,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/pagos",
+    name: "Pagos",
+    component: ListaPagos,
     meta: { requiresAuth: true },
   },
   {
