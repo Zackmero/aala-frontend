@@ -194,6 +194,12 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 
+const token = localStorage.getItem("token");
+const headers = {
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+};
+
 // 1. Estado del Formulario
 const form = ref({
   cliente_id: "",
@@ -216,6 +222,7 @@ const listas = ref({
 const cargando = ref(false);
 
 const asuntosFiltrados = computed(() => {
+  console.log("Materia seleccionada:", form.value.materia_id);
   if (!form.value.materia_id) return [];
   return listas.value.asuntos.filter(
     (a) => a.materia_id === form.value.materia_id,
@@ -229,7 +236,9 @@ const resetearAsunto = () => {
 onMounted(async () => {
   try {
     // 1. Cargar Catálogos Generales
-    const resCatalogos = await fetch("http://localhost:3000/api/catalogos");
+    const resCatalogos = await fetch(`${import.meta.env.VITE_API_URL}/catalogos`, {
+      headers,
+    });
     const dataCatalogos = await resCatalogos.json();
     listas.value.materias = dataCatalogos.materias;
     listas.value.asuntos = dataCatalogos.asuntos;
@@ -239,7 +248,9 @@ onMounted(async () => {
     listas.value.abogados = dataCatalogos.abogados;
 
     // 2. Cargar Clientes
-    const resClientes = await fetch("http://localhost:3000/api/clientes");
+    const resClientes = await fetch(`${import.meta.env.VITE_API_URL}/clientes`, {
+      headers,
+    });
     listas.value.clientes = await resClientes.json();
   } catch (error) {
     console.error("Error cargando los datos iniciales:", error);
@@ -255,9 +266,9 @@ const guardarExpediente = async () => {
       actualizado_por: localStorage.getItem("usuario_id") || 1,
     };
 
-    const respuesta = await fetch("http://localhost:3000/api/expedientes", {
+    const respuesta = await fetch(`${import.meta.env.VITE_API_URL}/expedientes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -335,6 +346,7 @@ textarea,
   color: var(--primary-dark);
   transition: border-color 0.3s;
   width: 100%;
+  cursor: pointer;
 }
 input:focus,
 textarea:focus,

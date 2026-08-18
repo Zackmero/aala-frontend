@@ -23,7 +23,7 @@
         />
       </div>
 
-      <div class="filtros-rapidos">
+      <!-- <div class="filtros-rapidos">
         <select class="input-select mini">
           <option value="">Todas las Materias</option>
           <option value="Familiar">Familiar</option>
@@ -34,12 +34,16 @@
           <option value="Activo">Activos</option>
           <option value="Concluido">Concluidos</option>
         </select>
-      </div>
+      </div> -->
     </div>
 
     <div class="tarjeta-sistema">
       <div v-if="cargando" class="estado-msg">
         <span class="spinner">⏳</span> Cargando base de datos legal...
+      </div>
+
+      <div v-else-if="errorMensaje" class="estado-msg">
+        <span class="spinner">⚠️</span> {{ errorMensaje }}
       </div>
 
       <div v-else class="responsive-table-container">
@@ -49,7 +53,9 @@
               <th>Expediente / Asunto</th>
               <th>Cliente</th>
               <th>Clasificación</th>
+              <th>Abogado Responsable</th>
               <th>Estatus Procesal</th>
+
               <th class="text-center">Acciones</th>
             </tr>
           </thead>
@@ -71,11 +77,15 @@
                 <div class="tag-materia">{{ caso.materia }}</div>
                 <div class="tag-asunto">{{ caso.asunto }}</div>
               </td>
+
+              <td style="font-weight: bold">{{ caso.abogado }}</td>
+
               <td>
                 <span class="badge-estatus activo">
                   {{ caso.estatus }}
                 </span>
               </td>
+
               <td>
                 <div class="btn-groupacciones">
                   <button
@@ -100,27 +110,29 @@
 
         <div class="paginacion-footer" v-if="casosFiltrados.length > 0">
           <div class="paginacion-info">
-            Mostrando {{ inicioPaginacion }} a {{ finPaginacion }} de {{ casosFiltrados.length }}
+            Mostrando {{ inicioPaginacion }} a {{ finPaginacion }} de
+            {{ casosFiltrados.length }}
           </div>
           <div class="paginacion-controles">
-            <button 
-              @click="paginaActual--" 
-              :disabled="paginaActual === 1" 
+            <button
+              @click="paginaActual--"
+              :disabled="paginaActual === 1"
               class="btn-paginacion"
             >
               Anterior
             </button>
-            <span class="paginacion-texto">{{ paginaActual }} / {{ totalPaginas }}</span>
-            <button 
-              @click="paginaActual++" 
-              :disabled="paginaActual === totalPaginas" 
+            <span class="paginacion-texto"
+              >{{ paginaActual }} / {{ totalPaginas }}</span
+            >
+            <button
+              @click="paginaActual++"
+              :disabled="paginaActual === totalPaginas"
               class="btn-paginacion"
             >
               Siguiente
             </button>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -139,6 +151,25 @@
           style="margin-top: 15px"
         >
           <div class="grupo-input full">
+            <label>Abogado Asignado *</label>
+            <select
+              v-model="formEditar.abogado_id"
+              class="input-select"
+              :disabled="!esAutorizadoParaAsignar"
+              required
+            >
+              <option value="" disabled>Selecciona un abogado...</option>
+              <option
+                v-for="abogado in listaAbogados"
+                :key="abogado.id"
+                :value="abogado.id"
+              >
+                {{ abogado.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <div class="grupo-input full mt-2">
             <label>Estatus Procesal *</label>
             <select
               v-model="formEditar.estatus_id"
@@ -198,13 +229,17 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 
+const token = localStorage.getItem("token");
+
 const router = useRouter();
 const cargando = ref(false);
 const guardando = ref(false);
+const errorMensaje = ref("");
 const filtroBusqueda = ref("");
 
 const expedientes = ref([]);
 const listas = ref({ estatus: [] }); // Para llenar el selector del modal
+const listaAbogados = ref([]); // Añadido para evitar el error de undefined en el v-for
 
 // Estado del Modal de Edición
 const mostrarModalEditar = ref(false);
@@ -213,13 +248,14 @@ const formEditar = ref({
   estatus_id: "",
   numero_expediente_judicial: "",
   descripcion: "",
+  abogado_id: "",
 });
 
-// NUEVO: Variables de estado para Paginación
+// Variables de estado para Paginación
 const paginaActual = ref(1);
-const elementosPorPagina = ref(6); // Límite exacto de tu tabla de Clientes
+const elementosPorPagina = ref(6);
 
-// NUEVO: Resetear a la página 1 cuando el usuario busca algo
+// Resetear a la página 1 cuando el usuario busca algo
 watch(filtroBusqueda, () => {
   paginaActual.value = 1;
 });
@@ -234,19 +270,32 @@ const verDetalles = (id) => {
   router.push(`/expedientes/${id}`);
 };
 
+// ====================================================
+// VALIDACIÓN DE PERMISOS PARA EDICIÓN DE ABOGADO
+// ====================================================
+const esAutorizadoParaAsignar = computed(() => {
+  // Extraemos el ID como número desde el localStorage
+  const usuarioId = Number(localStorage.getItem("usuario_id"));
+  // Solo se desbloqueará el campo si es 1 o 6
+  return usuarioId === 1 || usuarioId === 6;
+});
+
+const normalizarExpedientes = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.expedientes)) return payload.expedientes;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
 // Lógica para abrir el modal y pre-llenar los datos
 const abrirModalEditar = async (caso) => {
-  // Primero necesitamos traer los datos completos de ese caso específico (para obtener la descripcion original que no viene en la tabla general)
-  // O como atajo, puedes llenarlo con los datos básicos que ya tienes
-
-  // Vamos a usar los datos que ya sabemos y la descripción la dejaremos para que pongan la actualización
   formEditar.value = {
     id: caso.id,
-    // Buscamos el ID del estatus basado en el nombre que viene en la tabla
     estatus_id:
       listas.value.estatus.find((e) => e.nombre === caso.estatus)?.id || "",
     numero_expediente_judicial: caso.numero_expediente_judicial || "",
     descripcion: caso.descripcion || "",
+    abogado_id: caso.abogado_id || "",
   };
 
   mostrarModalEditar.value = true;
@@ -261,13 +310,17 @@ const guardarEdicion = async () => {
       numero_expediente_judicial: formEditar.value.numero_expediente_judicial,
       descripcion: formEditar.value.descripcion,
       actualizado_por: localStorage.getItem("usuario_id") || 1,
+      abogado_id: formEditar.value.abogado_id,
     };
 
     const respuesta = await fetch(
       `http://localhost:3000/api/expedientes/${formEditar.value.id}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       },
     );
@@ -289,12 +342,32 @@ const guardarEdicion = async () => {
 
 const cargarExpedientes = async () => {
   cargando.value = true;
+  errorMensaje.value = "";
+
   try {
-    const respuesta = await fetch("http://localhost:3000/api/expedientes");
-    if (!respuesta.ok) throw new Error("Error al obtener los expedientes");
-    expedientes.value = await respuesta.json();
+    if (!token) {
+      throw new Error(
+        "No hay sesión activa. Inicia sesión para ver los expedientes.",
+      );
+    }
+
+    const respuesta = await fetch(`${import.meta.env.VITE_API_URL}/expedientes`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const payload = await respuesta.json().catch(() => ({}));
+
+    if (!respuesta.ok) {
+      throw new Error(payload?.mensaje || "Error al obtener los expedientes");
+    }
+
+    expedientes.value = normalizarExpedientes(payload);
   } catch (error) {
+    errorMensaje.value = error.message;
     console.error("Error cargando la tabla:", error);
+    expedientes.value = [];
   } finally {
     cargando.value = false;
   }
@@ -305,7 +378,11 @@ onMounted(async () => {
 
   // Cargamos el catálogo de estatus para usarlo en el Modal
   try {
-    const resCat = await fetch("http://localhost:3000/api/catalogos");
+    const resCat = await fetch(`${import.meta.env.VITE_API_URL}/catalogos`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const catalogos = await resCat.json();
     listas.value.estatus = catalogos.estatus.sort((a, b) => a.orden - b.orden);
   } catch (e) {
@@ -313,7 +390,7 @@ onMounted(async () => {
   }
 });
 
-// 2. MAGIA DEL BUSCADOR: Filtra la tabla en tiempo real
+// MAGIA DEL BUSCADOR: Filtra la tabla en tiempo real
 const casosFiltrados = computed(() => {
   const busqueda = filtroBusqueda.value.toLowerCase();
   if (!busqueda) return expedientes.value;
@@ -328,7 +405,7 @@ const casosFiltrados = computed(() => {
   });
 });
 
-// NUEVO: Propiedades Computadas para la Paginación
+// Propiedades Computadas para la Paginación
 const totalPaginas = computed(() => {
   return Math.ceil(casosFiltrados.value.length / elementosPorPagina.value) || 1;
 });
@@ -339,24 +416,22 @@ const casosPaginados = computed(() => {
   return casosFiltrados.value.slice(inicio, fin);
 });
 
-// NUEVO: Cálculos para el texto visual "Mostrando 1 a 6"
+// Cálculos para el texto visual "Mostrando 1 a 6"
 const inicioPaginacion = computed(() => {
   if (casosFiltrados.value.length === 0) return 0;
-  return ((paginaActual.value - 1) * elementosPorPagina.value) + 1;
+  return (paginaActual.value - 1) * elementosPorPagina.value + 1;
 });
 
 const finPaginacion = computed(() => {
   const fin = paginaActual.value * elementosPorPagina.value;
   return fin > casosFiltrados.value.length ? casosFiltrados.value.length : fin;
 });
-
 </script>
 
 <style scoped>
 /* ====================================================
    ESTILOS ADAPTADOS A TU DISEÑO EXISTENTE
    ==================================================== */
-/* ... (Tus estilos anteriores de la tabla se mantienen iguales) ... */
 .clientes-contenedor {
   padding: 20px;
 }
@@ -523,14 +598,14 @@ const finPaginacion = computed(() => {
 }
 
 /* ====================================================
-   ESTILOS PARA LA PAGINACIÓN (Basado en vista Clientes)
+   ESTILOS PARA LA PAGINACIÓN
    ==================================================== */
 .paginacion-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  background-color: var(--primary); /* Fondo claro de la tarjeta */
+  background-color: var(--primary);
   border-top: 1px solid var(--border-light);
 }
 .paginacion-info {
@@ -624,6 +699,11 @@ const finPaginacion = computed(() => {
   border: 1px solid #ccc;
   border-radius: 6px;
   font-family: inherit;
+}
+.input-select:disabled {
+  background-color: #f5f5f5;
+  color: #888;
+  cursor: not-allowed;
 }
 .mt-2 {
   margin-top: 15px;

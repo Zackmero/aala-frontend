@@ -71,13 +71,13 @@
                   >
                     ✏️
                   </button>
-                  <button
+                  <!-- <button
                     @click="confirmarEliminar(cliente.id)"
                     class="btn-accion delete"
                     title="Eliminar"
                   >
                     🗑️
-                  </button>
+                  </button> -->
                 </div>
               </td>
             </tr>
@@ -229,11 +229,13 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 
+const token = localStorage.getItem("token");
+
 // --- ESTADOS ---
 const clientes = ref([]);
 const cargando = ref(true);
 const filtroBusqueda = ref("");
-const paginaActual = ref(1);
+const paginaActual = ref(1); 
 const clientesPorPagina = 6;
 const mostrarModal = ref(false);
 const mostrarModalDetalles = ref(false);
@@ -286,7 +288,11 @@ watch(filtroBusqueda, () => {
 // --- FUNCIONES API ---
 const obtenerClientes = async () => {
   try {
-    const res = await fetch("http://localhost:3000/api/clientes");
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/clientes`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     clientes.value = await res.json();
   } catch (e) {
     console.error(e);
@@ -298,13 +304,16 @@ const obtenerClientes = async () => {
 const guardarCliente = async () => {
   const url = editando.value
     ? `http://localhost:3000/api/clientes/${clienteSeleccionado.value.id}`
-    : "http://localhost:3000/api/clientes";
+    : `${import.meta.env.VITE_API_URL}/clientes`;
   const method = editando.value ? "PUT" : "POST";
 
   try {
     const res = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(form.value),
     });
 
@@ -336,6 +345,9 @@ const confirmarEliminar = async (id) => {
   if (confirm("¿Estás seguro de que deseas eliminar este expediente?")) {
     await fetch(`http://localhost:3000/api/clientes/${id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
     obtenerClientes();
   }

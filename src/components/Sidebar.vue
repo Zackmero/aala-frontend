@@ -1,6 +1,6 @@
 <template>
   <aside class="sidebar">
-    <div class="sidebar-header">
+    <div class="sidebar-header" @click="router.push('/')" style="cursor: pointer;">
       <span class="brand-icon">⚖️</span>
       <span class="brand-name">AALA</span>
     </div>
@@ -20,8 +20,11 @@
       <router-link to="/pagos" class="nav-item" active-class="active">
         <span class="nav-icon">💰</span> Pagos
       </router-link>
-      <router-link to="/configuracion" class="nav-item" active-class="active">
-        <span class="nav-icon">⚙️</span> Configuración
+      <router-link to="/gastos" class="nav-item" active-class="active">
+        <span class="nav-icon">🧾</span> Gastos
+      </router-link>
+      <router-link to="/contabilidad" class="nav-item" active-class="active">
+        <span class="nav-icon">📊</span> Contabilidad
       </router-link>
       </template>
 
