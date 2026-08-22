@@ -58,7 +58,9 @@ const router = useRouter();
 const handleLogin = async () => {
   cargando.value = true;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+    const apiBase = String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+    const url_final = `${apiBase}/auth/login`;
+    const res = await fetch(url_final, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.value, password: password.value }),

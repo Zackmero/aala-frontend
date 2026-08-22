@@ -1,6 +1,6 @@
 // src/services/api.js
 
-const BASE_URL = `${import.meta.env.VITE_API_URL}`;
+const BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 export const apiFetch = async (endpoint, options = {}) => {
   // Obtenemos el token de manera centralizada
