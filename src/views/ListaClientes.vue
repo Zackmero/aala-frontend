@@ -26,7 +26,7 @@
 
     <div class="tarjeta-sistema">
       <div v-if="cargando" class="estado-msg">
-        Cargando base de datos legal...
+        <span class="spinner-small"></span> Cargando base de datos legal...
       </div>
 
       <div v-else class="responsive-table-container">
@@ -42,18 +42,30 @@
           </thead>
           <tbody>
             <tr v-if="clientesPaginados.length === 0">
-              <td colspan="5" class="vacio">No se encontraron clientes.</td>
+              <td colspan="5" class="vacio">
+                <span class="vacio-icon">📭</span>
+                <p>No se encontraron clientes.</p>
+              </td>
             </tr>
             <tr v-for="cliente in clientesPaginados" :key="cliente.id">
-              <td class="col-id">#{{ cliente.id }}</td>
-              <td class="resaltado">{{ cliente.nombre_completo }}</td>
-              <td>
-                <div class="tag-doc">RFC: {{ cliente.rfc || "N/A" }}</div>
-                <div class="tag-doc">CURP: {{ cliente.curp || "N/A" }}</div>
+              <td class="col-id">
+                <span class="id-badge">#{{ cliente.id }}</span>
+              </td>
+              <td class="resaltado">
+                <div class="avatar-text">
+                  <div class="avatar-initial">{{ (cliente.nombre_completo || "?").charAt(0) }}</div>
+                  <span>{{ cliente.nombre_completo }}</span>
+                </div>
               </td>
               <td>
-                <div class="tel-text">📞 {{ cliente.telefono }}</div>
-                <div class="mail-text">✉️ {{ cliente.email }}</div>
+                <div class="tags-container">
+                  <div class="tag-doc">RFC: <strong>{{ cliente.rfc || "N/A" }}</strong></div>
+                  <div class="tag-doc">CURP: <strong>{{ cliente.curp || "N/A" }}</strong></div>
+                </div>
+              </td>
+              <td class="col-contacto">
+                <div class="tel-text"><span class="contacto-icon">📞</span> {{ cliente.telefono }}</div>
+                <div class="mail-text"><span class="contacto-icon">✉️</span> {{ cliente.email }}</div>
               </td>
               <td>
                 <div class="btn-groupacciones">
@@ -87,8 +99,8 @@
 
       <div class="paginacion-container" v-if="clientesFiltrados.length > 0">
         <span class="info-paginacion">
-          Mostrando {{ indiceInicio + 1 }} a {{ indiceFin }} de
-          {{ clientesFiltrados.length }}
+          Mostrando <strong>{{ indiceInicio + 1 }}</strong> a <strong>{{ indiceFin }}</strong> de
+          <strong>{{ clientesFiltrados.length }}</strong>
         </span>
         <div class="botones-paginacion">
           <button
@@ -112,6 +124,7 @@
       </div>
     </div>
 
+    <!-- MODAL DETALLES -->
     <div v-if="mostrarModalDetalles" class="modal-overlay">
       <div class="modal-card">
         <header class="modal-header header-detail">
@@ -135,7 +148,7 @@
           </div>
           <div class="detail-item">
             <strong>Estado Civil:</strong>
-            {{ clienteSeleccionado.estado_civil || "No registrado" }}
+            <span class="badge-estado">{{ clienteSeleccionado.estado_civil || "No registrado" }}</span>
           </div>
           <div class="detail-item full">
             <strong>Email:</strong> {{ clienteSeleccionado.email }}
@@ -153,6 +166,7 @@
       </div>
     </div>
 
+    <!-- MODAL FORMULARIO -->
     <div v-if="mostrarModal" class="modal-overlay">
       <div class="modal-card">
         <header class="modal-header">
@@ -199,7 +213,7 @@
             <input
               v-model="form.email"
               type="email"
-              required
+              
               placeholder="correo@ejemplo.com"
             />
           </div>
@@ -228,6 +242,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
+import { API_URL } from "../services/api.js";
 
 const token = localStorage.getItem("token");
 
@@ -258,7 +273,7 @@ const clientesFiltrados = computed(() => {
   const t = filtroBusqueda.value.toLowerCase();
   return clientes.value.filter(
     (c) =>
-      c.nombre_completo.toLowerCase().includes(t) ||
+      (c.nombre_completo || "").toLowerCase().includes(t) ||
       (c.rfc && c.rfc.toLowerCase().includes(t)),
   );
 });
@@ -288,7 +303,7 @@ watch(filtroBusqueda, () => {
 // --- FUNCIONES API ---
 const obtenerClientes = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/clientes`, {
+    const res = await fetch(`${API_URL}/clientes`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -303,8 +318,8 @@ const obtenerClientes = async () => {
 
 const guardarCliente = async () => {
   const url = editando.value
-    ? `http://localhost:3000/api/clientes/${clienteSeleccionado.value.id}`
-    : `${import.meta.env.VITE_API_URL}/clientes`;
+    ? `${API_URL}/clientes/${clienteSeleccionado.value.id}`
+    : `${API_URL}/clientes`;
   const method = editando.value ? "PUT" : "POST";
 
   try {
@@ -333,8 +348,7 @@ const guardarCliente = async () => {
         );
       }
     } else {
-      const errorServidor = await res.json();
-      alert("Error del servidor: " + errorServidor.mensaje);
+      alert("Error del servidor: " + (data.mensaje || "No se pudo guardar el cliente."));
     }
   } catch (e) {
     alert("Error de conexión. Revisa que el Backend esté encendido.");
@@ -343,7 +357,7 @@ const guardarCliente = async () => {
 
 const confirmarEliminar = async (id) => {
   if (confirm("¿Estás seguro de que deseas eliminar este expediente?")) {
-    await fetch(`http://localhost:3000/api/clientes/${id}`, {
+    await fetch(`${API_URL}/clientes/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -380,66 +394,110 @@ onMounted(obtenerClientes);
 </script>
 
 <style scoped>
-
+/* ====================================================
+   ESTILOS DE CLIENTES (Paleta estricta Color Hunt)
+   ==================================================== */
 .clientes-contenedor {
   width: 100%;
-  margin-top: 5px;
+  padding: 20px 30px;
+  animation: fadeIn 0.4s ease-out;
+  background-color: #F3F4F4; /* Fondo principal de la paleta */
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cabecera */
 .cabecera-seccion {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 25px;
+  align-items: flex-end;
+  margin-bottom: 30px;
 }
 
 .header-text h2 {
-  margin: 0;
-  color: var(--primary-dark);
-  font-size: 1.8rem;
-  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #2C2C2C; /* Color oscuro principal */
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .subtitulo {
-  color: var(--secondary);
-  margin: 5px 0 0;
+  color: #612D53; /* Tono intermedio de la paleta */
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.85;
 }
 
 /* Buscador */
 .toolbar-tabla {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
 .buscador-wrapper {
   position: relative;
   flex-grow: 1;
-  max-width: 400px;
+  max-width: 450px;
 }
+
 .search-icon {
   position: absolute;
-  left: 12px;
-  top: 12px;
-  color: var(--secondary);
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #612D53;
+  font-size: 1.1rem;
 }
+
 .input-buscador {
   width: 100%;
-  padding: 12px 12px 12px 40px;
-  border: 1px solid var(--secondary);
-  border-radius: 8px;
+  padding: 14px 16px 14px 45px;
+  border: 1.5px solid rgba(133, 57, 83, 0.2);
+  border-radius: 12px;
   font-size: 1rem;
-  outline: none;
+  background-color: #ffffff;
+  color: #2C2C2C;
+  box-shadow: 0 2px 6px rgba(44, 44, 44, 0.02);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
 .input-buscador:focus {
-  border-color: var(--primary-dark);
+  outline: none;
+  border-color: #853953; /* Color de acento */
+  box-shadow: 0 0 0 4px rgba(133, 57, 83, 0.1);
 }
 
-/* Tabla */
+/* Tarjeta y Tabla */
 .tarjeta-sistema {
-  background: var(--primary);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(44, 44, 44, 0.03), 0 10px 15px -3px rgba(44, 44, 44, 0.04);
+  border: 1px solid rgba(133, 57, 83, 0.1);
   overflow: hidden;
-  border: 1px solid var(--border-light);
+}
+
+.estado-msg {
+  padding: 40px;
+  text-align: center;
+  color: #612D53;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.responsive-table-container {
+  overflow-x: auto;
 }
 
 .tabla-profesional {
@@ -449,57 +507,131 @@ onMounted(obtenerClientes);
 }
 
 .tabla-profesional th {
-  background: var(--secondary);
-  color: var(--primary);
-  padding: 15px;
+  background: #F3F4F4;
+  color: #612D53;
+  padding: 16px 20px;
   font-size: 0.85rem;
   text-transform: uppercase;
-  border-bottom: 2px solid var(--secondary);
+  font-weight: 700;
   letter-spacing: 0.5px;
+  border-bottom: 2px solid rgba(133, 57, 83, 0.15);
 }
 
 .tabla-profesional td {
-  padding: 15px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--primary-dark);
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(44, 44, 44, 0.05);
   vertical-align: middle;
+  color: #2C2C2C;
+  transition: background-color 0.2s ease;
+}
+
+.tabla-profesional tbody tr:hover td {
+  background-color: rgba(243, 244, 244, 0.6);
+}
+
+.tabla-profesional tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Celdas Específicas */
+.col-id {
+  width: 80px;
+}
+
+.id-badge {
+  background: #F3F4F4;
+  color: #612D53;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.avatar-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-initial {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #853953 0%, #612D53 100%);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
 }
 
 .resaltado {
-  font-weight: 600;
-  color: var(--primary-dark);
+  font-weight: 700;
+  color: #2C2C2C;
+  font-size: 1.05rem;
+}
+
+.tags-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .tag-doc {
   font-size: 0.75rem;
-  background: var(--primary);
-  color: var(--primary-dark);
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  display: block;
+  background: rgba(133, 57, 83, 0.08);
+  color: #853953;
+  padding: 4px 10px;
+  border-radius: 20px;
   width: fit-content;
   font-weight: 500;
 }
 
+.tag-doc strong {
+  font-weight: 700;
+}
+
+.col-contacto {
+  font-size: 0.9rem;
+  color: #2C2C2C;
+  opacity: 0.8;
+}
+
+.col-contacto div {
+  margin-bottom: 4px;
+}
+
+.contacto-icon {
+  margin-right: 6px;
+}
+
+/* Botones de Acción de Tabla */
 .btn-groupacciones {
   display: flex;
   gap: 8px;
+  justify-content: center;
 }
 
 .btn-accion {
   border: none;
-  background: var(--secondary);
+  background: #F3F4F4;
+  border: 1px solid rgba(133, 57, 83, 0.2);
   padding: 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s ease;
   font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-accion:hover {
-  background: var(--terciary);
-  transform: translateY(-1px);
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(44, 44, 44, 0.08);
+  border-color: #853953;
 }
 
 /* Paginación */
@@ -507,34 +639,48 @@ onMounted(obtenerClientes);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background: var(--primary);
-  border-top: 1px solid var(--secondary);
+  padding: 16px 24px;
+  background: #F3F4F4;
+  border-top: 1px solid rgba(133, 57, 83, 0.1);
 }
+
 .info-paginacion {
   font-size: 0.9rem;
-  color: var(--primary-dark);
+  color: #2C2C2C;
+}
+
+.botones-paginacion {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .btn-page {
   padding: 8px 16px;
-  border: 1px solid var(--border-light);
-  background: var(--primary);
-  border-radius: 6px;
+  border: 1px solid rgba(133, 57, 83, 0.2);
+  background: #ffffff;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  color: var(--secondary);
+  color: #2C2C2C;
+  transition: all 0.2s ease;
+}
+
+.btn-page:not(:disabled):hover {
+  background: #853953;
+  color: #ffffff;
+  border-color: #853953;
 }
 
 .btn-page:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: #F3F4F4;
 }
 
 .page-current {
-  font-weight: 600;
-  color: var(--primary-dark);
-  margin: 0 10px;
+  font-weight: 700;
+  color: #2C2C2C;
 }
 
 /* Modales */
@@ -544,149 +690,208 @@ onMounted(obtenerClientes);
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(44, 44, 44, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
 }
+
 .modal-card {
-  background: var(--primary);
+  background: #ffffff;
   width: 95%;
-  max-width: 600px;
-  border-radius: 12px;
+  max-width: 650px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 25px 50px -12px rgba(44, 44, 44, 0.3);
+  animation: modalSlideUp 0.3s ease-out;
 }
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .modal-header {
-  padding: 20px;
-  background: var(--secondary);
-  color: var(--primary);
+  padding: 24px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(133, 57, 83, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .header-detail {
-  background: var(--secondary) !important;
+  background: linear-gradient(135deg, #853953 0%, #612D53 100%);
+  color: #ffffff;
 }
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2C2C2C;
+}
+
+.header-detail h3 {
+  color: #ffffff;
+}
+
 .btn-close {
   background: none;
   border: none;
-  color: var(--primary);
-  font-size: 1.8rem;
+  font-size: 2rem;
   cursor: pointer;
   line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  color: inherit;
+}
+
+.btn-close:hover {
+  opacity: 1;
 }
 
 /* Formularios y Grids */
-.form-grid,
-.detail-grid {
-  padding: 25px;
+.form-grid, .detail-grid {
+  padding: 30px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
-.grupo-input.full,
-.detail-item.full {
-  grid-column: span 2;
-}
+
+.grupo-input.full, .detail-item.full { grid-column: span 2; }
+.modal-footer.full { grid-column: span 2; margin: 0 -30px -30px -30px; }
+
 .grupo-input label {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--primary-dark);
+  color: #2C2C2C;
 }
+
 .grupo-input input,
 .grupo-input textarea,
 .input-select {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--primary-dark);
-  border-color: var(--terciary);
-  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1.5px solid rgba(133, 57, 83, 0.2);
+  border-radius: 10px;
   font-size: 1rem;
-  transition: 0.2s;
+  color: #2C2C2C;
+  transition: all 0.2s ease;
+  background-color: #F3F4F4;
+  box-sizing: border-box;
 }
+
 .grupo-input input:focus,
+.grupo-input textarea:focus,
 .input-select:focus {
-  border-color: var(--primary-dark);
+  background-color: #ffffff;
+  border-color: #853953;
+  box-shadow: 0 0 0 4px rgba(133, 57, 83, 0.1);
   outline: none;
 }
-.input-select {
-  background-color: var(--primary);
-  cursor: pointer;
+
+.detail-item {
+  background: #F3F4F4;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(133, 57, 83, 0.1);
+  color: #2C2C2C;
 }
 
 .detail-item strong {
   display: block;
-  font-size: 0.8rem;
-  color: var(--terciary);
+  font-size: 0.75rem;
+  color: #612D53;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
 }
-.detail-item {
-  font-size: 1.05rem;
+
+.badge-estado {
+  background: rgba(133, 57, 83, 0.12);
+  color: #853953;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .modal-footer {
-  padding: 15px 25px;
-  border-top: 1px solid var(--primary);
+  padding: 20px 30px;
+  background: #F3F4F4;
+  border-top: 1px solid rgba(133, 57, 83, 0.1);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  background: var(--primary);
 }
 
 /* Botones Finales */
 .btn-primario {
-  background: var(--secondary);
-  color: var(--primary);
+  background: #853953;
+  color: #ffffff;
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  transition: 0.3s;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+
 .btn-secundario {
-  background: var(--secondary);
-  color: var(--primary);
-  border: none;
+  background: #ffffff;
+  color: #2C2C2C;
+  border: 1.5px solid rgba(133, 57, 83, 0.3);
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
 } 
 
 .btn-primario:hover {
-  background: var(--terciary);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-.btn-secundario:hover{
-  background: var(--terciary);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: #612D53;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(133, 57, 83, 0.3);
 }
 
+.btn-secundario:hover {
+  background: #F3F4F4;
+  border-color: #853953;
+  color: #853953;
+}
 
+.vacio {
+  text-align: center;
+  padding: 40px;
+  color: #612D53;
+}
+
+.vacio-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
 
 @media (max-width: 768px) {
-  .form-grid,
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-  .grupo-input.full,
-  .detail-item.full {
-    grid-column: span 1;
-  }
-  .cabecera-seccion {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  .btn-primario {
-    width: 100%;
-  }
+  .clientes-contenedor { padding: 15px; }
+  .form-grid, .detail-grid { grid-template-columns: 1fr; padding: 20px; }
+  .grupo-input.full, .detail-item.full { grid-column: span 1; }
+  .modal-footer.full { grid-column: span 1; margin: 0 -20px -20px -20px; padding: 20px; }
+  .cabecera-seccion { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .btn-primario { width: 100%; justify-content: center; }
+  .toolbar-tabla { flex-direction: column; }
+  .buscador-wrapper { max-width: 100%; width: 100%; }
 }
 </style>

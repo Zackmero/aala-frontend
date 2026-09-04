@@ -60,6 +60,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { API_URL } from '../services/api.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -77,7 +78,7 @@ const cargarPerfilFiscal = async () => {
   try {
     const id = route.params.id;
     // Petición al endpoint que ya creamos en perfilFiscalController
-    const res = await fetch(`http://localhost:3000/api/contabilidad/perfiles/cliente/tramites/${id}`, {
+    const res = await fetch(`${API_URL}/contabilidad/perfiles/cliente/tramites/${id}`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     if (res.ok) {

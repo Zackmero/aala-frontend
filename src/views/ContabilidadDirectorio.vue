@@ -125,7 +125,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { API_URL } from '../services/api.js';
 
+const router = useRouter();
 const token = localStorage.getItem("token");
 const perfiles = ref([]);
 const listaClientes = ref([]);
@@ -164,7 +167,7 @@ const ocultarDropdown = () => setTimeout(() => mostrarDropdown.value = false, 15
 const cargarDirectorio = async () => {
   cargando.value = true;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/perfil-fiscal`, { 
+    const res = await fetch(`${API_URL}/perfil-fiscal`, { 
       headers: { "Authorization": `Bearer ${token}` } 
     });
     if (res.ok){
@@ -191,7 +194,7 @@ const cargarDirectorio = async () => {
 
 const cargarClientesBase = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/clientes`, { 
+    const res = await fetch(`${API_URL}/clientes`, { 
       headers: { "Authorization": `Bearer ${token}` } 
     });
     
@@ -235,7 +238,7 @@ const guardarPerfil = async () => {
   
   guardando.value = true;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/perfil-fiscal`, {
+    const res = await fetch(`${API_URL}/perfil-fiscal`, {
       method: 'POST',
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify(formPerfil.value)

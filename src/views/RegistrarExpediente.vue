@@ -191,6 +191,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { API_URL } from "../services/api.js";
 
 const router = useRouter();
 
@@ -222,10 +223,9 @@ const listas = ref({
 const cargando = ref(false);
 
 const asuntosFiltrados = computed(() => {
-  console.log("Materia seleccionada:", form.value.materia_id);
   if (!form.value.materia_id) return [];
   return listas.value.asuntos.filter(
-    (a) => a.materia_id === form.value.materia_id,
+    (a) => Number(a.materia_id) === Number(form.value.materia_id),
   );
 });
 
@@ -236,7 +236,7 @@ const resetearAsunto = () => {
 onMounted(async () => {
   try {
     // 1. Cargar Catálogos Generales
-    const resCatalogos = await fetch(`${import.meta.env.VITE_API_URL}/catalogos`, {
+    const resCatalogos = await fetch(`${API_URL}/catalogos`, {
       headers,
     });
     const dataCatalogos = await resCatalogos.json();
@@ -248,7 +248,7 @@ onMounted(async () => {
     listas.value.abogados = dataCatalogos.abogados;
 
     // 2. Cargar Clientes
-    const resClientes = await fetch(`${import.meta.env.VITE_API_URL}/clientes`, {
+    const resClientes = await fetch(`${API_URL}/clientes`, {
       headers,
     });
     listas.value.clientes = await resClientes.json();
@@ -260,13 +260,10 @@ onMounted(async () => {
 const guardarExpediente = async () => {
   cargando.value = true;
   try {
-    const payload = {
-      ...form.value,
-      creado_por: localStorage.getItem("usuario_id") || 1,
-      actualizado_por: localStorage.getItem("usuario_id") || 1,
-    };
+    // La autoría la resuelve el backend con el token; no se manda desde aquí.
+    const payload = { ...form.value };
 
-    const respuesta = await fetch(`${import.meta.env.VITE_API_URL}/expedientes`, {
+    const respuesta = await fetch(`${API_URL}/expedientes`, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),

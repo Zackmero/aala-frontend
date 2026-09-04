@@ -12,6 +12,7 @@
       </button>
     </div>
 
+    <!-- TOOLBAR (BUSCADOR Y FILTROS) -->
     <div class="toolbar-tabla">
       <div class="buscador-wrapper">
         <span class="search-icon">🔍</span>
@@ -22,28 +23,17 @@
           class="input-buscador"
         />
       </div>
-
-      <!-- <div class="filtros-rapidos">
-        <select class="input-select mini">
-          <option value="">Todas las Materias</option>
-          <option value="Familiar">Familiar</option>
-          <option value="Penal">Penal</option>
-        </select>
-        <select class="input-select mini">
-          <option value="">Todos los Estatus</option>
-          <option value="Activo">Activos</option>
-          <option value="Concluido">Concluidos</option>
-        </select>
-      </div> -->
     </div>
 
+    <!-- TABLA DE EXPEDIENTES -->
     <div class="tarjeta-sistema">
       <div v-if="cargando" class="estado-msg">
-        <span class="spinner">⏳</span> Cargando base de datos legal...
+        <span class="spinner-small"></span> Cargando base de datos legal...
       </div>
 
-      <div v-else-if="errorMensaje" class="estado-msg">
-        <span class="spinner">⚠️</span> {{ errorMensaje }}
+      <div v-else-if="errorMensaje" class="estado-msg error">
+        <span class="vacio-icon">⚠️</span> 
+        <p>{{ errorMensaje }}</p>
       </div>
 
       <div v-else class="responsive-table-container">
@@ -55,30 +45,32 @@
               <th>Clasificación</th>
               <th>Abogado Responsable</th>
               <th>Estatus Procesal</th>
-
               <th class="text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="casosFiltrados.length === 0">
-              <td colspan="5" class="vacio">
-                No se encontraron expedientes con esa búsqueda.
+              <td colspan="6" class="vacio">
+                <span class="vacio-icon">📭</span>
+                <p>No se encontraron expedientes con esa búsqueda.</p>
               </td>
             </tr>
             <tr v-for="caso in casosPaginados" :key="caso.id">
               <td>
                 <div class="resaltado">{{ caso.titulo }}</div>
                 <div class="expediente-num">
-                  No. {{ caso.numero_expediente_judicial || "Sin asignar" }}
+                  No. <strong>{{ caso.numero_expediente_judicial || "Sin asignar" }}</strong>
                 </div>
               </td>
-              <td class="cliente-nombre">👤 {{ caso.cliente }}</td>
+              <td class="cliente-nombre">
+                <span class="contacto-icon">👤</span> {{ caso.cliente }}
+              </td>
               <td>
                 <div class="tag-materia">{{ caso.materia }}</div>
                 <div class="tag-asunto">{{ caso.asunto }}</div>
               </td>
 
-              <td style="font-weight: bold">{{ caso.abogado }}</td>
+              <td class="col-abogado">{{ caso.abogado }}</td>
 
               <td>
                 <span class="badge-estatus activo">
@@ -108,26 +100,27 @@
           </tbody>
         </table>
 
+        <!-- PAGINACIÓN -->
         <div class="paginacion-footer" v-if="casosFiltrados.length > 0">
           <div class="paginacion-info">
-            Mostrando {{ inicioPaginacion }} a {{ finPaginacion }} de
-            {{ casosFiltrados.length }}
+            Mostrando <strong>{{ inicioPaginacion }}</strong> a <strong>{{ finPaginacion }}</strong> de
+            <strong>{{ casosFiltrados.length }}</strong>
           </div>
           <div class="paginacion-controles">
             <button
               @click="paginaActual--"
               :disabled="paginaActual === 1"
-              class="btn-paginacion"
+              class="btn-page"
             >
               Anterior
             </button>
-            <span class="paginacion-texto"
+            <span class="page-current"
               >{{ paginaActual }} / {{ totalPaginas }}</span
             >
             <button
               @click="paginaActual++"
               :disabled="paginaActual === totalPaginas"
-              class="btn-paginacion"
+              class="btn-page"
             >
               Siguiente
             </button>
@@ -136,6 +129,7 @@
       </div>
     </div>
 
+    <!-- MODAL DE EDICIÓN -->
     <div v-if="mostrarModalEditar" class="modal-overlay">
       <div class="modal-card">
         <header class="modal-header">
@@ -148,7 +142,7 @@
         <form
           @submit.prevent="guardarEdicion"
           class="form-grid"
-          style="margin-top: 15px"
+          style="margin-top: 20px"
         >
           <div class="grupo-input full">
             <label>Abogado Asignado *</label>
@@ -167,9 +161,12 @@
                 {{ abogado.nombre }}
               </option>
             </select>
+            <small v-if="!esAutorizadoParaAsignar" class="nota-permiso">
+              Solo un socio del despacho puede reasignar el expediente.
+            </small>
           </div>
 
-          <div class="grupo-input full mt-2">
+          <div class="grupo-input full">
             <label>Estatus Procesal *</label>
             <select
               v-model="formEditar.estatus_id"
@@ -187,7 +184,7 @@
             </select>
           </div>
 
-          <div class="grupo-input full mt-2">
+          <div class="grupo-input full">
             <label>No. de Expediente Juzgado</label>
             <input
               v-model="formEditar.numero_expediente_judicial"
@@ -197,17 +194,17 @@
             />
           </div>
 
-          <div class="grupo-input full mt-2">
+          <div class="grupo-input full">
             <label>Actualizar Descripción / Notas</label>
             <textarea
               v-model="formEditar.descripcion"
               rows="3"
-              class="input-select"
+              class="input-select textarea"
               placeholder="Escribe un resumen de los cambios..."
             ></textarea>
           </div>
 
-          <footer class="modal-footer full mt-4">
+          <footer class="modal-footer full">
             <button
               type="button"
               @click="mostrarModalEditar = false"
@@ -215,8 +212,8 @@
             >
               Cancelar
             </button>
-            <button type="submit" class="btn-primario" :disabled="guardando">
-              {{ guardando ? "Guardando..." : "Actualizar" }}
+            <button type="submit" class="btn-primario full-width-btn" :disabled="guardando">
+              {{ guardando ? "Guardando..." : "Actualizar Expediente" }}
             </button>
           </footer>
         </form>
@@ -228,6 +225,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import { API_URL } from "../services/api.js";
 
 const token = localStorage.getItem("token");
 
@@ -238,10 +236,9 @@ const errorMensaje = ref("");
 const filtroBusqueda = ref("");
 
 const expedientes = ref([]);
-const listas = ref({ estatus: [] }); // Para llenar el selector del modal
-const listaAbogados = ref([]); // Añadido para evitar el error de undefined en el v-for
+const listas = ref({ estatus: [] }); 
+const listaAbogados = ref([]); 
 
-// Estado del Modal de Edición
 const mostrarModalEditar = ref(false);
 const formEditar = ref({
   id: null,
@@ -251,34 +248,27 @@ const formEditar = ref({
   abogado_id: "",
 });
 
-// Variables de estado para Paginación
 const paginaActual = ref(1);
 const elementosPorPagina = ref(6);
 
-// Resetear a la página 1 cuando el usuario busca algo
 watch(filtroBusqueda, () => {
   paginaActual.value = 1;
 });
 
-// Función para navegar a la pantalla de crear
 const irANuevoCaso = () => {
   router.push("/registrar-expediente");
 };
 
-// Función para navegar a la pantalla de perfil completo del expediente
 const verDetalles = (id) => {
   router.push(`/expedientes/${id}`);
 };
 
-// ====================================================
-// VALIDACIÓN DE PERMISOS PARA EDICIÓN DE ABOGADO
-// ====================================================
-const esAutorizadoParaAsignar = computed(() => {
-  // Extraemos el ID como número desde el localStorage
-  const usuarioId = Number(localStorage.getItem("usuario_id"));
-  // Solo se desbloqueará el campo si es 1 o 6
-  return usuarioId === 1 || usuarioId === 6;
-});
+// Solo un socio puede reasignar el expediente a otro abogado.
+// Esto es únicamente para la interfaz: quien realmente decide es el backend,
+// que valida `es_socio` desde el token firmado antes de aceptar el cambio.
+const esAutorizadoParaAsignar = computed(
+  () => String(localStorage.getItem("es_socio")) === "1",
+);
 
 const normalizarExpedientes = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -287,21 +277,23 @@ const normalizarExpedientes = (payload) => {
   return [];
 };
 
-// Lógica para abrir el modal y pre-llenar los datos
 const abrirModalEditar = async (caso) => {
   formEditar.value = {
     id: caso.id,
+    // Ahora el listado sí devuelve los ids; la búsqueda por nombre queda
+    // solo como respaldo por si algún registro viene incompleto.
     estatus_id:
-      listas.value.estatus.find((e) => e.nombre === caso.estatus)?.id || "",
+      caso.estatus_id ??
+      listas.value.estatus.find((e) => e.nombre === caso.estatus)?.id ??
+      "",
     numero_expediente_judicial: caso.numero_expediente_judicial || "",
     descripcion: caso.descripcion || "",
-    abogado_id: caso.abogado_id || "",
+    abogado_id: caso.abogado_id ?? "",
   };
 
   mostrarModalEditar.value = true;
 };
 
-// Lógica para enviar el PUT al backend
 const guardarEdicion = async () => {
   guardando.value = true;
   try {
@@ -309,12 +301,11 @@ const guardarEdicion = async () => {
       estatus_id: formEditar.value.estatus_id,
       numero_expediente_judicial: formEditar.value.numero_expediente_judicial,
       descripcion: formEditar.value.descripcion,
-      actualizado_por: localStorage.getItem("usuario_id") || 1,
       abogado_id: formEditar.value.abogado_id,
     };
 
     const respuesta = await fetch(
-      `http://localhost:3000/api/expedientes/${formEditar.value.id}`,
+      `${API_URL}/expedientes/${formEditar.value.id}`,
       {
         method: "PUT",
         headers: {
@@ -330,7 +321,6 @@ const guardarEdicion = async () => {
     alert("Expediente actualizado correctamente");
     mostrarModalEditar.value = false;
 
-    // Recargamos la tabla para ver los cambios
     cargarExpedientes();
   } catch (error) {
     console.error(error);
@@ -351,7 +341,7 @@ const cargarExpedientes = async () => {
       );
     }
 
-    const respuesta = await fetch(`${import.meta.env.VITE_API_URL}/expedientes`, {
+    const respuesta = await fetch(`${API_URL}/expedientes`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -376,23 +366,30 @@ const cargarExpedientes = async () => {
 onMounted(async () => {
   cargarExpedientes();
 
-  // Cargamos el catálogo de estatus para usarlo en el Modal
   try {
-    const resCat = await fetch(`${import.meta.env.VITE_API_URL}/catalogos`, {
+    const resCat = await fetch(`${API_URL}/catalogos`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
     const catalogos = await resCat.json();
-    listas.value.estatus = catalogos.estatus.sort((a, b) => a.orden - b.orden);
+
+    listas.value.estatus = Array.isArray(catalogos.estatus)
+      ? [...catalogos.estatus].sort((a, b) => a.orden - b.orden)
+      : [];
+
+    // Sin esto el select de abogado del modal quedaba vacío y el
+    // formulario de edición no se podía enviar nunca.
+    listaAbogados.value = Array.isArray(catalogos.abogados)
+      ? catalogos.abogados
+      : [];
   } catch (e) {
-    console.error("No se pudo cargar el catálogo de estatus");
+    console.error("No se pudieron cargar los catálogos", e);
   }
 });
 
-// MAGIA DEL BUSCADOR: Filtra la tabla en tiempo real
 const casosFiltrados = computed(() => {
-  const busqueda = filtroBusqueda.value.toLowerCase();
+  const busqueda = filtroBusqueda.value.toLowerCase().trim();
   if (!busqueda) return expedientes.value;
 
   return expedientes.value.filter((caso) => {
@@ -405,7 +402,6 @@ const casosFiltrados = computed(() => {
   });
 });
 
-// Propiedades Computadas para la Paginación
 const totalPaginas = computed(() => {
   return Math.ceil(casosFiltrados.value.length / elementosPorPagina.value) || 1;
 });
@@ -416,7 +412,6 @@ const casosPaginados = computed(() => {
   return casosFiltrados.value.slice(inicio, fin);
 });
 
-// Cálculos para el texto visual "Mostrando 1 a 6"
 const inicioPaginacion = computed(() => {
   if (casosFiltrados.value.length === 0) return 0;
   return (paginaActual.value - 1) * elementosPorPagina.value + 1;
@@ -430,290 +425,467 @@ const finPaginacion = computed(() => {
 
 <style scoped>
 /* ====================================================
-   ESTILOS ADAPTADOS A TU DISEÑO EXISTENTE
+   ESTILOS EXPEDIENTES (Paleta estricta Color Hunt)
    ==================================================== */
 .clientes-contenedor {
-  padding: 20px;
+  width: 100%;
+  padding: 20px 30px;
+  animation: fadeIn 0.4s ease-out;
+  background-color: #F3F4F4;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cabecera */
 .cabecera-seccion {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-end;
+  margin-bottom: 30px;
 }
+
 .header-text h2 {
-  color: var(--primary-dark);
-  font-size: 1.8rem;
-  margin: 0 0 5px 0;
+  margin: 0 0 8px 0;
+  color: #2C2C2C;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
+
 .subtitulo {
-  color: #666;
+  color: #612D53;
   margin: 0;
+  font-size: 1rem;
+  opacity: 0.85;
 }
-.tarjeta-sistema {
-  background: var(--primary);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-}
+
+/* BUSCADOR Y FILTROS */
 .toolbar-tabla {
+  margin-bottom: 25px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 15px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
 }
+
 .buscador-wrapper {
   position: relative;
   flex-grow: 1;
-  max-width: 400px;
+  max-width: 450px;
 }
-.input-buscador {
-  width: 100%;
-  padding: 10px 10px 10px 35px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
+
 .search-icon {
   position: absolute;
-  left: 12px;
-  top: 12px;
-  color: var(--secondary);
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #612D53;
+  font-size: 1.1rem;
 }
-.filtros-rapidos {
+
+.input-buscador {
+  width: 100%;
+  padding: 14px 16px 14px 45px;
+  border: 1.5px solid rgba(133, 57, 83, 0.2);
+  border-radius: 12px;
+  font-size: 1rem;
+  background-color: #ffffff;
+  color: #2C2C2C;
+  box-shadow: 0 2px 6px rgba(44, 44, 44, 0.02);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.input-buscador:focus {
+  outline: none;
+  border-color: #853953;
+  box-shadow: 0 0 0 4px rgba(133, 57, 83, 0.1);
+}
+
+/* TARJETA Y TABLA */
+.tarjeta-sistema {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(44, 44, 44, 0.03), 0 10px 15px -3px rgba(44, 44, 44, 0.04);
+  border: 1px solid rgba(133, 57, 83, 0.1);
+  overflow: hidden;
+}
+
+.estado-msg {
+  padding: 50px;
+  text-align: center;
+  color: #612D53;
+  font-weight: 500;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
+  font-size: 1.1rem;
 }
-.input-select.mini {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+
+.estado-msg.error {
+  color: #dc2626;
 }
+
 .responsive-table-container {
   overflow-x: auto;
 }
+
 .tabla-profesional {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
 }
+
 .tabla-profesional th {
-  background: var(--secondary);
-  color: var(--primary);
-  padding: 15px;
+  background: #F3F4F4;
+  color: #612D53;
+  padding: 16px 20px;
   font-size: 0.85rem;
   text-transform: uppercase;
-  border-bottom: 2px solid var(--secondary);
+  font-weight: 700;
   letter-spacing: 0.5px;
+  border-bottom: 2px solid rgba(133, 57, 83, 0.15);
 }
+
 .tabla-profesional td {
-  padding: 15px;
-  border-bottom: 1px solid var(--border-light);
-  color: var(--primary-dark);
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(44, 44, 44, 0.05);
   vertical-align: middle;
+  color: #2C2C2C;
+  transition: background-color 0.2s ease;
 }
+
+.tabla-profesional tbody tr:hover td {
+  background-color: rgba(243, 244, 244, 0.6);
+}
+
+/* Celdas de la tabla */
 .resaltado {
-  font-weight: 600;
-  color: var(--primary-dark);
+  font-weight: 700;
+  color: #2C2C2C;
+  font-size: 1.05rem;
   margin-bottom: 4px;
 }
+
 .expediente-num {
   font-size: 0.85rem;
-  color: #777;
+  color: #612D53;
+  background: rgba(133, 57, 83, 0.05);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
   font-family: monospace;
 }
+
 .cliente-nombre {
-  font-weight: 500;
-  color: var(--terciary);
+  font-weight: 600;
+  color: #612D53;
 }
+
+.contacto-icon {
+  margin-right: 4px;
+  opacity: 0.7;
+}
+
+.col-abogado {
+  font-weight: 700;
+  color: #2C2C2C;
+}
+
 .tag-materia,
 .tag-asunto {
   display: inline-block;
   font-size: 0.75rem;
-  padding: 3px 8px;
-  border-radius: 4px;
-  margin-bottom: 3px;
-  margin-right: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 4px;
+  margin-right: 6px;
+  font-weight: 600;
 }
 .tag-materia {
   background-color: rgba(97, 45, 83, 0.1);
-  color: var(--terciary);
-  font-weight: 600;
+  color: #612D53;
 }
 .tag-asunto {
-  background-color: #f0f0f0;
-  color: #555;
+  background-color: rgba(133, 57, 83, 0.08);
+  color: #853953;
 }
-.badge-estatus {
-  padding: 5px 12px;
+
+.badge-estatus.activo {
+  padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.8rem;
-  font-weight: bold;
+  font-weight: 700;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #e0e7ff; 
+  color: #4338ca;
 }
-.badge-estatus.activo {
-  background-color: rgba(133, 57, 83, 0.1);
-  color: var(--secondary);
-}
+
+/* BOTONES GLOBALES */
 .btn-primario {
-  background-color: var(--secondary);
-  color: white;
+  background: #853953;
+  color: #ffffff;
   border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
+  padding: 12px 24px;
+  border-radius: 10px;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .btn-primario:hover {
-  background-color: var(--terciary);
+  background: #612D53;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(133, 57, 83, 0.3);
 }
+
 .btn-secundario {
-  background-color: white;
-  color: var(--primary-dark);
-  border: 1px solid #ccc;
-  padding: 10px 20px;
-  border-radius: 6px;
+  background: #F3F4F4;
+  color: #2C2C2C;
+  border: 1px solid rgba(133, 57, 83, 0.2);
+  padding: 12px 24px;
+  border-radius: 10px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 .btn-secundario:hover {
-  background-color: #f5f5f5;
+  background: #ffffff;
+  border-color: #853953;
 }
+
+/* BOTONES TABLA */
 .btn-groupacciones {
   display: flex;
   gap: 8px;
   justify-content: center;
 }
+
 .btn-accion {
-  background: none;
   border: none;
-  font-size: 1.1rem;
+  background: #F3F4F4;
+  border: 1px solid rgba(133, 57, 83, 0.2);
+  padding: 8px;
+  border-radius: 8px;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-.btn-accion:hover {
-  background: #f5f5f5;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ====================================================
-   ESTILOS PARA LA PAGINACIÓN
-   ==================================================== */
+.btn-accion:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(44, 44, 44, 0.08);
+  border-color: #853953;
+}
+
+/* PAGINACIÓN */
 .paginacion-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
-  background-color: var(--primary);
-  border-top: 1px solid var(--border-light);
+  padding: 16px 24px;
+  background: #F3F4F4;
+  border-top: 1px solid rgba(133, 57, 83, 0.1);
 }
+
 .paginacion-info {
   font-size: 0.9rem;
-  color: #555;
+  color: #2C2C2C;
 }
+
 .paginacion-controles {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.paginacion-texto {
-  font-weight: 600;
-  color: var(--primary-dark);
-  font-size: 0.95rem;
-}
-.btn-paginacion {
-  background-color: transparent;
-  color: var(--secondary);
-  border: 1px solid var(--secondary);
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-paginacion:hover:not(:disabled) {
-  background-color: var(--secondary);
-  color: white;
-}
-.btn-paginacion:disabled {
-  border-color: #ccc;
-  color: #ccc;
-  cursor: not-allowed;
+  gap: 15px;
 }
 
-/* ====================================================
-   ESTILOS PARA EL MODAL DE EDICIÓN
-   ==================================================== */
+.btn-page {
+  padding: 8px 16px;
+  border: 1px solid rgba(133, 57, 83, 0.2);
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #2C2C2C;
+  transition: all 0.2s ease;
+}
+
+.btn-page:not(:disabled):hover {
+  background: #853953;
+  color: #ffffff;
+  border-color: #853953;
+}
+
+.btn-page:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #F3F4F4;
+}
+
+.page-current {
+  font-weight: 700;
+  color: #2C2C2C;
+}
+
+/* MODALES */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(44, 44, 44, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
 }
+
 .modal-card {
-  background: white;
-  width: 100%;
-  max-width: 500px;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+  width: 95%;
+  max-width: 550px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(44, 44, 44, 0.3);
+  animation: modalSlideUp 0.3s ease-out;
 }
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .modal-header {
+  padding: 24px;
+  background: linear-gradient(135deg, #853953 0%, #612D53 100%);
+  color: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
 }
+
 .modal-header h3 {
   margin: 0;
-  color: var(--primary-dark);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ffffff;
 }
+
 .btn-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 2rem;
   cursor: pointer;
-  color: #888;
+  line-height: 1;
+  color: #ffffff;
+  opacity: 0.8;
+  transition: opacity 0.2s;
 }
-.btn-close:hover {
-  color: var(--secondary);
+.btn-close:hover { opacity: 1; }
+
+.form-grid {
+  padding: 0 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
+
+.grupo-input {
+  display: flex;
+  flex-direction: column;
+}
+
 .grupo-input label {
-  display: block;
-  font-weight: 600;
-  color: var(--primary-dark);
+  font-weight: 700;
+  color: #2C2C2C;
   font-size: 0.9rem;
   margin-bottom: 8px;
 }
+
+/* Aviso bajo el select de abogado cuando quien edita no es socio */
+.nota-permiso {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #6b6b6b;
+  font-style: italic;
+}
+
 .input-select {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-family: inherit;
+  padding: 12px 16px;
+  border: 1.5px solid rgba(133, 57, 83, 0.2);
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #2C2C2C;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
+
+.input-select:focus {
+  outline: none;
+  border-color: #853953;
+  box-shadow: 0 0 0 4px rgba(133, 57, 83, 0.1);
+}
+
 .input-select:disabled {
-  background-color: #f5f5f5;
+  background-color: #F3F4F4;
   color: #888;
   cursor: not-allowed;
+  border-color: rgba(44, 44, 44, 0.1);
 }
-.mt-2 {
-  margin-top: 15px;
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
 }
-.mt-4 {
-  margin-top: 25px;
-}
+
 .modal-footer {
+  padding: 24px 30px;
+  background: #F3F4F4;
+  border-top: 1px solid rgba(133, 57, 83, 0.1);
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+/* ESTADOS VACÍOS */
+.vacio {
+  text-align: center;
+  padding: 60px 20px;
+  color: #612D53;
+}
+.vacio-icon {
+  font-size: 3.5rem;
+  display: block;
+  margin-bottom: 15px;
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .clientes-contenedor { padding: 15px; }
+  .cabecera-seccion { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .toolbar-tabla { flex-direction: column; align-items: stretch; }
+  .buscador-wrapper { max-width: 100%; }
 }
 </style>

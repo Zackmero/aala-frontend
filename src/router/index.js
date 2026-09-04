@@ -7,7 +7,7 @@ import PortalCliente from "../views/PortalCliente.vue";
 import registrarExpediente from "../views/RegistrarExpediente.vue";
 import ListaExpedientes from "../views/ListaExpedientes.vue";
 import DetalleExpediente from "../views/DetalleExpediente.vue";
-import ListaPagos from "../views/listaPagos.vue";
+import ListaPagos from "../views/ListaPagos.vue";
 import ListaGastos from "../views/ListaGastos.vue";
 import ContabilidadDirectorio from "../views/ContabilidadDirectorio.vue";
 import ExpedienteFiscal from "../views/ExpedienteFiscal.vue";

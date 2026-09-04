@@ -37,12 +37,12 @@
 
           <!-- Slot para la columna 'estatus' -->
           <template #estatus="{ item }">
-            <span :class="['badge-estatus', item.estatus.toLowerCase()]">
-              {{ item.estatus }}
+            <span :class="['badge-estatus', (item.estatus || 'Programada').toLowerCase()]">
+              {{ item.estatus || 'Programada' }}
             </span>
           </template>
 
-          Slot para la columna de acciones
+          <!-- Slot para la columna de acciones -->
           <template #acciones="{ item }">
             <div class="btn-groupacciones" style="justify-content: center">
               <!-- Botón que ejecuta la función y pasa los datos de esta fila -->
@@ -71,6 +71,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import TablaGenerica from "../components/TablaGenerica.vue";
+import { API_URL } from "../services/api.js";
 
 // Importación de todo el archivo de utilidades
 import * as formato from "../utils/Formatos.js";
@@ -88,7 +89,7 @@ const headers = {
 
 const cargarAudienciasVisualizacion = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/audiencias`, {
+    const res = await fetch(`${API_URL}/audiencias`, {
       headers,
     });
     listaAudiencias.value = await res.json();
