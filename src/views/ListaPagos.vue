@@ -267,6 +267,8 @@ import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 // Eliminamos assetUrl ya que ahora usamos la ruta segura a través del backend
 import { API_URL } from "../services/api.js";
+import { formatearFecha, formatoMoneda } from "../utils/Formatos.js";
+import { notificar } from "../composables/useNotificaciones";
 const token = localStorage.getItem("token");
 
 const router = useRouter();
@@ -313,13 +315,23 @@ const cerrarModalDetallePago = () => {
 };
 
 // CÁLCULO DE ESTATUS
+// Compara SOLO fechas, en horario local. Antes usaba toISOString(), que
+// convierte a UTC: en México (UTC-6) un cobro que vence hoy se marcaba como
+// atrasado desde las 6 de la tarde. Es el dato que dispara la cobranza.
+const soloFecha = (valor) => {
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+
 const obtenerTextoEstatus = (pago) => {
   if (pago.estatus === "Pagado") return "Pagado";
-  const hoy = new Date().toISOString().split("T")[0];
   if (!pago.fecha_vencimiento) return "Pendiente";
-  const vencimiento = new Date(pago.fecha_vencimiento)
-    .toISOString()
-    .split("T")[0];
+
+  const hoy = soloFecha(new Date());
+  const vencimiento = soloFecha(pago.fecha_vencimiento);
+  if (vencimiento === null) return "Pendiente";
+
   return pago.estatus === "Pendiente" && vencimiento < hoy
     ? "Atrasado"
     : "Pendiente";
@@ -430,6 +442,7 @@ const cargarTodosLosPagos = async () => {
 
 // Función para abrir el comprobante usando el backend como puente seguro hacia AWS
 const abrirComprobanteSeguro = async (pagoId) => {
+  const ventana = window.open("", "_blank");
   try {
     const respuesta = await fetch(`${API_URL}/pagos/${pagoId}/comprobante`, {
       method: "GET",
@@ -443,10 +456,19 @@ const abrirComprobanteSeguro = async (pagoId) => {
     }
 
     const data = await respuesta.json();
-    window.open(data.url, "_blank");
+    if (!data.url) throw new Error("El servidor no devolvió el enlace del comprobante");
+
+    // La pestaña se abre en el mismo clic del usuario; si se abriera después
+    // del await, el bloqueador de ventanas emergentes la cancelaría.
+    if (ventana) {
+      ventana.location.href = data.url;
+    } else {
+      window.open(data.url, "_blank");
+    }
   } catch (error) {
+    if (ventana) ventana.close();
     console.error("Error al intentar abrir el comprobante:", error);
-    alert("Hubo un problema al abrir el documento. Verifica la consola.");
+    notificar.error("No se pudo abrir el comprobante", error.message);
   }
 };
 
@@ -454,22 +476,8 @@ onMounted(() => {
   cargarTodosLosPagos();
 });
 
-// UTILIDADES FORMATO
-const formatearFecha = (fechaString) => {
-  if (!fechaString) return null;
-  const opciones = { year: "numeric", month: "long", day: "numeric" };
-  const date = new Date(fechaString);
-  return new Date(
-    date.getTime() + Math.abs(date.getTimezoneOffset() * 60000),
-  ).toLocaleDateString("es-MX", opciones);
-};
-
-const formatoMoneda = (monto) => {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(monto);
-};
+// Los formatos viven en utils/Formatos.js y se importan arriba.
+// La versión local de formatoMoneda no protegía contra null y mostraba "$NaN".
 </script>
 
 <style scoped>

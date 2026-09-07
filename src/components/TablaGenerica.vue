@@ -14,13 +14,20 @@
 
     <div class="toolbar-tabla">
       <div class="buscador-wrapper">
-        <span class="search-icon">🔍</span>
+        <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <circle cx="8.8" cy="8.8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M13 13l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
         <input
           v-model="filtroBusqueda"
           type="text"
           :placeholder="placeholderBuscador"
           class="input-buscador"
         />
+      </div>
+      <!-- La vista que use la tabla puede colgar aquí sus propios filtros -->
+      <div class="toolbar-extras">
+        <slot name="filtros"></slot>
       </div>
     </div>
 
@@ -173,30 +180,52 @@ watch(filtroBusqueda, () => {
 
 /* Buscador */
 .toolbar-tabla {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.toolbar-extras {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .buscador-wrapper {
   position: relative;
   flex-grow: 1;
-  max-width: 400px;
+  max-width: 450px;
 }
 .search-icon {
   position: absolute;
-  left: 12px;
-  top: 12px;
-  color: var(--secondary);
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 17px;
+  height: 17px;
+  color: var(--terciary);
+  opacity: 0.85;
+  pointer-events: none;
 }
 .input-buscador {
   width: 100%;
-  padding: 12px 12px 12px 40px;
-  border: 1px solid var(--secondary);
-  border-radius: 8px;
+  padding: 14px 16px 14px 45px;
+  border: 1.5px solid rgba(133, 57, 83, 0.2);
+  border-radius: 12px;
   font-size: 1rem;
+  background-color: #ffffff;
+  color: var(--primary-dark);
+  box-shadow: 0 2px 6px rgba(44, 44, 44, 0.02);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
   outline: none;
 }
 
 .input-buscador:focus {
-  border-color: var(--primary-dark);
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 4px rgba(133, 57, 83, 0.1);
 }
 
 /* Tabla */

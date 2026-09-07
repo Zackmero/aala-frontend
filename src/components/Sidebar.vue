@@ -16,6 +16,9 @@
       <router-link to="/expedientes" class="nav-item" active-class="active">
         <span class="nav-icon">📂</span> Expedientes
       </router-link>
+      <router-link to="/lista-audiencias" class="nav-item" active-class="active">
+        <span class="nav-icon">⚖️</span> Audiencias
+      </router-link>
       <router-link to="/pagos" class="nav-item" active-class="active">
         <span class="nav-icon">💰</span> Pagos
       </router-link>
@@ -23,16 +26,13 @@
         <span class="nav-icon">🧾</span> Gastos
       </router-link>
       <router-link to="/contabilidad" class="nav-item" active-class="active">
-        <span class="nav-icon">📊</span> Contabilidad
+        <span class="nav-icon">🧮</span> Contabilidad
       </router-link>
       </template>
 
       <template v-if="rol === 'cliente'">
         <router-link to="/mi-portal" class="nav-item" active-class="active">
           <span class="nav-icon">📂</span> Mi Expediente
-        </router-link>
-        <router-link to="/mis-pagos-cliente" class="nav-item" active-class="active">
-          <span class="nav-icon">💳</span> Mis Pagos
         </router-link>
       </template>
     </nav>

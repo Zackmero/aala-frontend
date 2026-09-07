@@ -36,7 +36,7 @@
               <td><span class="tag-materia">{{ perfil.rfc }}</span></td>
               <td>{{ perfil.regimen_fiscal }}</td>
               <td>
-                <div>✉️ {{ perfil.correo || 'Sin correo' }}</div>
+                <div>✉️ {{ perfil.email || 'Sin correo' }}</div>
                 <div>📞 {{ perfil.telefono || 'Sin teléfono' }}</div>
               </td>
               <td>
@@ -127,6 +127,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { API_URL } from '../services/api.js';
+import { notificar } from '../composables/useNotificaciones';
 
 const router = useRouter();
 const token = localStorage.getItem("token");
@@ -172,21 +173,26 @@ const cargarDirectorio = async () => {
     });
     if (res.ok){
       const data = await res.json();
-      data.forEach(element => {
-        perfiles.value.push({
-          id: element.id,
-          cliente_id: element.cliente_id || '',
-          razon_social: element.razon_social || '',
-          rfc: element.rfc || '',
-          regimen_fiscal: element.regimen_fiscal || '',
-          actividad_economica: element.actividad_economica || '',
-          estatus_contable: element.estatus_contable || 'Pendiente'
-        });
-      });
+      // Se REEMPLAZA la lista, no se acumula. Con push, al guardar un perfil
+      // nuevo se volvía a llamar esta función y la tabla mostraba todo doble.
+      perfiles.value = (Array.isArray(data) ? data : []).map(element => ({
+        id: element.id,
+        cliente_id: element.cliente_id || '',
+        razon_social: element.razon_social || '',
+        rfc: element.rfc || '',
+        regimen_fiscal: element.regimen_fiscal || '',
+        actividad_economica: element.actividad_economica || '',
+        estatus_contable: element.estatus_contable || 'Pendiente',
+        // El backend los devuelve y antes ni se copiaban: por eso la columna
+        // de contacto siempre salía vacía.
+        email: element.email || '',
+        telefono: element.telefono || ''
+      }));
     }
     console.log("Directorio cargado:", perfiles.value);
   } catch (e) { 
     console.error("Error cargando directorio:", e); 
+    notificar.error("No se pudo cargar el directorio fiscal", e.message);
   } finally { 
     cargando.value = false; 
   }
@@ -200,8 +206,7 @@ const cargarClientesBase = async () => {
     
     if (res.ok) {
       const data = await res.json();
-      data.forEach(element => {
-        listaClientes.value.push({
+      listaClientes.value = (Array.isArray(data) ? data : []).map(element => ({
           id: element.id,
           nombreCompleto: element.nombre_completo || '',
           rfc: element.rfc || '',
@@ -211,8 +216,7 @@ const cargarClientesBase = async () => {
           email: element.email || '',
           direccion: element.direccion || '',
           usuario_id: element.usuario_id || ''
-        }); 
-      });
+      }));
     }
   
     
@@ -232,7 +236,10 @@ const cerrarModal = () => mostrarModal.value = false;
 
 const guardarPerfil = async () => {
   if (!formPerfil.value.cliente_id) {
-    alert("Debes seleccionar un cliente base del buscador.");
+    notificar.advertencia(
+      "Falta el cliente",
+      "Selecciona un cliente del buscador antes de guardar el perfil fiscal."
+    );
     return;
   }
   
@@ -243,16 +250,23 @@ const guardarPerfil = async () => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify(formPerfil.value)
     });
+    const datos = await res.json().catch(() => ({}));
+
     if (res.ok) {
-      alert("¡Cliente fiscal creado correctamente!");
+      notificar.exito(
+        "Perfil fiscal creado",
+        `${formPerfil.value.razon_social} ya aparece en el directorio contable.`
+      );
       cerrarModal();
       await cargarDirectorio();
     } else {
-      const errorData = await res.json();
-      alert(errorData.mensaje || "Error al crear perfil.");
+      notificar.error(
+        "No se pudo crear el perfil fiscal",
+        datos.mensaje || "El servidor rechazó los datos."
+      );
     }
   } catch (e) { 
-    alert("Error de conexión al guardar"); 
+    notificar.error("No se pudo guardar", "No hubo conexión con el servidor."); 
   } finally { 
     guardando.value = false; 
   }

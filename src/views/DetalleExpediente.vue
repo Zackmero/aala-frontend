@@ -400,18 +400,32 @@
                   </td>
                   <td>📍 {{ audiencia.lugar }}</td>
                   <td>
-                    <span :class="['badge-estatus', audiencia.estatus.toLowerCase()]">
-                      {{ audiencia.estatus }}
+                    <span :class="['badge-estatus', (audiencia.estatus || 'Programada').toLowerCase()]">
+                      {{ audiencia.estatus || 'Programada' }}
                     </span>
                   </td>
                   <td>
                     <div class="btn-groupacciones">
+                      <button
+                        @click="verDetallesAudiencia(audiencia)"
+                        class="btn-accion view"
+                        title="Ver detalles"
+                      >
+                        👁️
+                      </button>
                       <button
                         @click="editarAudiencia(audiencia)"
                         class="btn-accion edit"
                         title="Editar"
                       >
                         ✏️
+                      </button>
+                      <button
+                        @click="eliminarAudiencia(audiencia)"
+                        class="btn-accion delete"
+                        title="Eliminar"
+                      >
+                        🗑️
                       </button>
                     </div>
                   </td>
@@ -671,14 +685,14 @@
             </div>
 
             <div class="group-input full mt-2">
-              <a
+              <button
                 v-if="gastoSeleccionado.comprobante_url || gastoSeleccionado.comprobanteUrl"
-                :href="`${API_URL}/gastos/${gastoSeleccionado.id}/comprobante?token=${token}`"
-                target="_blank"
-                class="btn-primario flex-center text-no-underline"
+                type="button"
+                @click="abrirComprobanteGasto(gastoSeleccionado.id)"
+                class="btn-primario flex-center"
               >
                 📄 Ver Comprobante Adjunto (Seguro)
-              </a>
+              </button>
               <div v-else class="vacio-border">
                 <p>No hay comprobante adjunto a este registro.</p>
               </div>
@@ -858,6 +872,89 @@
         </form>
       </div>
     </div>
+
+    <!--TODO MODAL DE DETALLE DE AUDIENCIA -->
+    <div v-if="mostrarModalDetalleAudiencia" class="modal-overlay">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3>Detalle de la Audiencia</h3>
+          <button @click="cerrarModalDetalleAudiencia" class="btn-close">&times;</button>
+        </header>
+
+        <div class="modal-body form-grid" v-if="audienciaSeleccionada">
+          <div class="group-input full">
+            <label>Audiencia</label>
+            <div class="caja-texto-lectura resaltado">
+              {{ audienciaSeleccionada.titulo || "Sin título" }}
+            </div>
+          </div>
+
+          <div class="group-input">
+            <label>Fecha y hora</label>
+            <div class="caja-texto-lectura">
+              🗓️ {{ formato.formatearFechaHoraTexto(audienciaSeleccionada.fecha_hora) }}
+            </div>
+          </div>
+
+          <div class="group-input">
+            <label>Estatus</label>
+            <div class="caja-texto-lectura">
+              <span :class="['badge-estatus', (audienciaSeleccionada.estatus || 'Programada').toLowerCase()]">
+                {{ audienciaSeleccionada.estatus || 'Programada' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="group-input full">
+            <label>Lugar / Modalidad</label>
+            <div class="caja-texto-lectura">
+              📍 {{ audienciaSeleccionada.lugar || "Sin lugar registrado" }}
+            </div>
+          </div>
+
+          <div class="group-input">
+            <label>Abogado responsable</label>
+            <div class="caja-texto-lectura">
+              {{ audienciaSeleccionada.nombre_abogado || "Sin asignar" }}
+            </div>
+          </div>
+
+          <div class="group-input">
+            <label>Programada el</label>
+            <div class="caja-texto-lectura">
+              {{ formato.formatearFechaHoraTexto(audienciaSeleccionada.fecha_creacion) }}
+            </div>
+          </div>
+
+          <div class="group-input full">
+            <label>Notas de preparación</label>
+            <div class="caja-texto-lectura">
+              {{ audienciaSeleccionada.notas_preparacion || "Sin notas de preparación." }}
+            </div>
+          </div>
+
+          <div class="group-input full">
+            <label>Resultado</label>
+            <div class="caja-texto-lectura">
+              {{ audienciaSeleccionada.resultado || "Todavía sin resultado registrado." }}
+            </div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" @click="cerrarModalDetalleAudiencia" class="btn-secundario">
+            Cerrar
+          </button>
+          <button
+            type="button"
+            class="btn-primario"
+            @click="editarDesdeDetalleAudiencia"
+          >
+            ✏️ Editar
+          </button>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -866,6 +963,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as formato from "../utils/Formatos.js";
 import { API_URL } from "../services/api.js";
+import { notificar, confirmar } from "../composables/useNotificaciones";
 
 const token = localStorage.getItem("token");
 
@@ -917,7 +1015,7 @@ const cargarDocumentos = async () => {
 
 const subirDocumento = async () => {
   if (archivosSeleccionados.value.length === 0)
-    return alert("Por favor selecciona al menos un archivo.");
+    return notificar.advertencia("Falta el archivo", "Selecciona al menos un documento para subir.");
 
   subiendo.value = true;
   const formData = new FormData();
@@ -938,30 +1036,42 @@ const subirDocumento = async () => {
     });
     if (!respuesta.ok) throw new Error("Error en el servidor al subir archivos");
     const dataRespuesta = await respuesta.json();
-    alert(`¡Éxito! ${dataRespuesta.mensaje} (${dataRespuesta.cantidad} archivos)`);
+    notificar.exito(
+      dataRespuesta.cantidad === 1 ? "Documento subido" : `${dataRespuesta.cantidad} documentos subidos`,
+      `Clasificados como "${formDoc.value.tipo || "Otro"}".`
+    );
     cerrarModalDoc();
     await cargarDocumentos();
   } catch (error) {
     console.error(error);
-    alert("Error al subir los documentos.");
+    notificar.error("No se pudieron subir los documentos", error.message);
   } finally {
     subiendo.value = false;
   }
 };
 
 const borrarDocumento = async (documentoId) => {
-  if (!confirm("¿Estás seguro de eliminar este documento?")) return;
+  const doc = listaDocumentos.value.find((d) => d.id === documentoId);
+  const confirmacion = await confirmar({
+    titulo: "¿Eliminar este documento?",
+    mensaje: doc?.nombre_original || `Documento #${documentoId}`,
+    detalle: "Se borra también el archivo guardado en la nube. No se puede deshacer.",
+    textoConfirmar: "Sí, eliminar",
+    textoCancelar: "Conservar",
+    tipo: "peligro",
+  });
+  if (!confirmacion) return;
   try {
     const respuesta = await fetch(`${API_URL}/documentos/${route.params.id}/${documentoId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!respuesta.ok) throw new Error("Error al eliminar el documento");
-    alert("Documento eliminado correctamente.");
+    notificar.exito("Documento eliminado");
     await cargarDocumentos();
   } catch (error) {
     console.error(error);
-    alert("Error al eliminar el documento.");
+    notificar.error("No se pudo eliminar el documento", error.message);
   }
 };
 
@@ -1016,11 +1126,7 @@ const conceptosPorTipo = {
   "Otros gastos": ["Honorarios periciales", "Traducciones oficiales", "Gastos notariales", "Costas judiciales", "Otros"],
 };
 
-const formatoInputDate = (fechaISO) => {
-  if (!fechaISO) return "";
-  const date = new Date(fechaISO);
-  return new Date(date.getTime() + Math.abs(date.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
-};
+const formatoInputDate = formato.formatoInputDate;
 
 const resolverNombreAbogado = (item) => {
   if (!item) return "";
@@ -1042,7 +1148,8 @@ const normalizarGasto = (gasto = {}) => {
     tipo: gasto.tipo || gasto.categoria || "Gasto general", concepto: gasto.concepto || gasto.descripcion || "",
     expedienteId: gasto.expediente_id ?? gasto.expediente?.id ?? null, monto: Number(gasto.monto ?? gasto.total ?? 0) || 0,
     fecha: gasto.fecha || gasto.fecha_gasto || "", estatus: gasto.estatus || gasto.estado || "Pendiente",
-    notas: gasto.notas || gasto.observaciones || "", comprobante_url: gasto.comprobante_url || gasto.comprobanteUrl || null,
+    notas: gasto.notas || gasto.observaciones || "", metodo_pago: gasto.metodo_pago || "",
+    comprobante_url: gasto.comprobante_url || gasto.comprobanteUrl || null,
   };
 };
 
@@ -1066,16 +1173,20 @@ const cargarCatalogos = async () => {
 
 const cargarGastosPorExpediente = async () => {
   try {
-    const respuesta = await fetch(API_GASTOS, { headers: { Authorization: `Bearer ${token}` } });
+    // Se pide solo lo de ESTE expediente. Antes se descargaban todos los gastos
+    // del despacho y se filtraban en el navegador: lento, y cualquiera con la
+    // consola abierta veía los gastos de los demás expedientes.
+    const respuesta = await fetch(`${API_GASTOS}/expediente/${route.params.id}`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await parsearRespuesta(respuesta);
-    listaGastos.value = Array.isArray(data) ? data.map(normalizarGasto).filter((g) => Number(g.expedienteId) === Number(route.params.id)) : [];
+    listaGastos.value = Array.isArray(data) ? data.map(normalizarGasto) : [];
   } catch (error) { console.error("Error cargando gastos:", error); }
 };
 
 const abrirNuevoGasto = () => {
   formGasto.value = {
-    id: null, abogado_id: "", registrado_por: localStorage.getItem("usuario_id") || 1, tipo: "Viáticos",
-    concepto: "", monto: "", fecha: new Date().toISOString().split("T")[0], estatus: "Pendiente", notas: "",
+    id: null, abogado_id: "", tipo: "Viáticos",
+    concepto: "", monto: "", fecha: new Date().toISOString().split("T")[0], estatus: "Pendiente",
+    metodo_pago: "", notas: "",
   };
   archivoComprobante.value = null;
   mostrarModalGasto.value = true;
@@ -1084,10 +1195,12 @@ const abrirNuevoGasto = () => {
 const editarGasto = (gasto) => {
   const abogadoSeleccionado = abogadosDisponibles.value.find((a) => a.id === gasto.abogadoId);
   formGasto.value = {
-    id: gasto.id, abogado_id: gasto.abogado_id || abogadoSeleccionado?.id || "", tipo: gasto.tipo || "Viáticos",
+    // normalizarGasto devuelve abogadoId (camelCase); leer abogado_id daba
+    // siempre undefined y el select salía vacío al editar.
+    id: gasto.id, abogado_id: gasto.abogadoId ?? abogadoSeleccionado?.id ?? "", tipo: gasto.tipo || "Viáticos",
     concepto: gasto.concepto || "", monto: Number(gasto.monto || 0),
     fecha: formatoInputDate(gasto.fecha) || new Date().toISOString().split("T")[0],
-    estatus: gasto.estatus || "Pendiente", notas: gasto.notas || "",
+    estatus: gasto.estatus || "Pendiente", metodo_pago: gasto.metodo_pago || "", notas: gasto.notas || "",
   };
   mostrarModalGasto.value = true;
 };
@@ -1098,19 +1211,38 @@ const cerrarModalGasto = () => { mostrarModalGasto.value = false; };
 
 const eliminarGasto = async (idGasto) => {
   if (!idGasto) return;
-  if (!confirm("¿Deseas eliminar este gasto? Esta acción no se puede deshacer.")) return;
+  const gasto = listaGastos.value.find((g) => g.id === idGasto);
+  const confirmacion = await confirmar({
+    titulo: "¿Eliminar este gasto?",
+    mensaje: gasto
+      ? `${gasto.concepto || "Sin concepto"} — ${formatoMoneda(gasto.monto)}`
+      : `Gasto #${idGasto}`,
+    detalle: "Si tiene comprobante, también se borra de la nube. No se puede deshacer.",
+    textoConfirmar: "Sí, eliminar",
+    textoCancelar: "Conservar",
+    tipo: "peligro",
+  });
+  if (!confirmacion) return;
   try {
     const respuesta = await fetch(`${API_GASTOS}/expediente/${idGasto}`, {
       method: "DELETE", headers: { Authorization: `Bearer ${token}` },
     });
     if (!respuesta.ok) throw new Error("No se pudo eliminar el gasto");
-    alert("Gasto eliminado correctamente.");
+    notificar.exito("Gasto eliminado");
     await cargarGastosPorExpediente();
-  } catch (error) { alert("No se pudo eliminar el gasto."); }
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo eliminar el gasto", error.message);
+  }
 };
 
 const guardarGasto = async () => {
-  if (!formGasto.value.abogado_id) return alert("Selecciona un abogado responsable.");
+  if (!formGasto.value.abogado_id) {
+    return notificar.advertencia(
+      "Falta el abogado responsable",
+      "Selecciona quién hizo el gasto antes de guardarlo."
+    );
+  }
   guardandoGasto.value = true;
   const metodoHTTP = formGasto.value.id ? "PUT" : "POST";
   const url = formGasto.value.id ? `${API_GASTOS}/expediente/${formGasto.value.id}` : `${API_GASTOS}/expediente/${route.params.id}`;
@@ -1118,22 +1250,37 @@ const guardarGasto = async () => {
 
   const formData = new FormData();
   formData.append("id", formGasto.value.id); formData.append("abogado_id", formGasto.value.abogado_id);
-  formData.append("registrado_por", formGasto.value.registrado_por); formData.append("categoria", formGasto.value.tipo);
+  // registrado_por lo resuelve el backend con el token.
+  formData.append("categoria", formGasto.value.tipo);
   formData.append("concepto", formGasto.value.concepto); formData.append("monto", Number(formGasto.value.monto) || 0);
   formData.append("fecha_gasto", formGasto.value.fecha); formData.append("estatus", formGasto.value.estatus);
   formData.append("notas", formGasto.value.notas); formData.append("expediente_id", Number(route.params.id));
 
   if (formGasto.value.estatus === "Pagado") {
-    formData.append("metodo_pago", formGasto.value.metodo_pago);
+    // Sin el || "" se enviaba literalmente la cadena "undefined".
+    formData.append("metodo_pago", formGasto.value.metodo_pago || "");
     if (archivoComprobante.value) formData.append(nombreArchivo, archivoComprobante.value);
   }
 
   try {
     const respuesta = await fetch(url, { method: metodoHTTP, headers: { Authorization: `Bearer ${token}` }, body: formData });
-    if (!respuesta.ok) throw new Error("Error al guardar el gasto");
-    alert(`Gasto ${metodoHTTP === "POST" ? "registrado" : "actualizado"} correctamente.`);
+    if (!respuesta.ok) {
+      const datos = await respuesta.json().catch(() => ({}));
+      throw new Error(datos.mensaje || "El servidor rechazó el gasto.");
+    }
+
+    // Se confirma con el dato concreto para que se vea que quedó como se
+    // capturó, sobre todo el estatus, que antes se guardaba mal.
+    notificar.exito(
+      metodoHTTP === "POST" ? "Gasto registrado" : "Gasto actualizado",
+      `${formGasto.value.concepto || "Sin concepto"} · ${formatoMoneda(formGasto.value.monto)} · ${formGasto.value.estatus}`
+    );
+
     cerrarModalGasto(); await cargarGastosPorExpediente();
-  } catch (error) { alert("No se pudo guardar el gasto."); } finally { guardandoGasto.value = false; }
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo guardar el gasto", error.message);
+  } finally { guardandoGasto.value = false; }
 };
 
 // === AUDIENCIAS ===
@@ -1158,6 +1305,63 @@ const abrirNuevaAudiencia = () => {
   mostrarModalAudiencia.value = true;
 };
 const cerrarModalAudiencia = () => { mostrarModalAudiencia.value = false; };
+
+// --- Detalle de audiencia (solo lectura) ---
+const mostrarModalDetalleAudiencia = ref(false);
+const audienciaSeleccionada = ref(null);
+
+const verDetallesAudiencia = (audiencia) => {
+  audienciaSeleccionada.value = audiencia;
+  mostrarModalDetalleAudiencia.value = true;
+};
+
+const cerrarModalDetalleAudiencia = () => {
+  mostrarModalDetalleAudiencia.value = false;
+  audienciaSeleccionada.value = null;
+};
+
+// Pasar del detalle a la edición sin tener que cerrar y volver a buscar.
+const editarDesdeDetalleAudiencia = () => {
+  const audiencia = audienciaSeleccionada.value;
+  cerrarModalDetalleAudiencia();
+  if (audiencia) editarAudiencia(audiencia);
+};
+
+// --- Eliminar audiencia ---
+const eliminarAudiencia = async (audiencia) => {
+  if (!audiencia?.id) return;
+
+  const confirmacion = await confirmar({
+    titulo: "¿Eliminar esta audiencia?",
+    mensaje:
+      `"${audiencia.titulo || "Sin título"}"\n` +
+      `Programada para el ${formato.formatearFechaHoraTexto(audiencia.fecha_hora)}.`,
+    detalle:
+      "Esta acción no se puede deshacer. Si la audiencia se cayó pero quieres " +
+      'dejar constancia, es mejor editarla y ponerle estatus "Cancelada".',
+    textoConfirmar: "Sí, eliminar",
+    textoCancelar: "Conservar",
+    tipo: "peligro",
+  });
+  if (!confirmacion) return;
+
+  try {
+    const respuesta = await fetch(`${API_URL}/audiencias/${audiencia.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!respuesta.ok) throw new Error("No se pudo eliminar la audiencia");
+
+    // Si estaba abierto el detalle de esa misma audiencia, se cierra.
+    if (audienciaSeleccionada.value?.id === audiencia.id) cerrarModalDetalleAudiencia();
+
+    notificar.exito("Audiencia eliminada", audiencia.titulo || "");
+    await cargarAudiencias();
+  } catch (error) {
+    console.error("Error al eliminar la audiencia:", error);
+    notificar.error("No se pudo eliminar la audiencia", error.message);
+  }
+};
 
 const editarAudiencia = (audiencia) => {
   const opciones = ["Ciudad Judicial del Estado (Zapopan)", "Juzgados Familiares (Guadalajara)", "Centro de Justicia Penal Federal (Puente Grande)", "Audiencia Virtual (Zoom / Webex / Teams)"];
@@ -1186,9 +1390,21 @@ const guardarAudiencia = async () => {
   const metodo = formAudiencia.value.id ? "PUT" : "POST";
   try {
     const res = await fetch(url, { method: metodo, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
-    if (res.ok) { alert(`Audiencia ${metodo === "POST" ? "programada" : "actualizada"} correctamente.`); cerrarModalAudiencia(); cargarAudiencias(); }
-    else throw new Error("Fallo en la respuesta del servidor");
-  } catch (error) { alert("Hubo un error al guardar la audiencia."); } finally { guardandoAudiencia.value = false; }
+    if (res.ok) {
+      notificar.exito(
+        metodo === "POST" ? "Audiencia programada" : "Audiencia actualizada",
+        `${payload.titulo || "Sin título"} · ${formato.formatearFechaHoraTexto(payload.fecha_hora)}`
+      );
+      cerrarModalAudiencia();
+      cargarAudiencias();
+    } else {
+      const datos = await res.json().catch(() => ({}));
+      throw new Error(datos.mensaje || "El servidor rechazó la audiencia.");
+    }
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo guardar la audiencia", error.message);
+  } finally { guardandoAudiencia.value = false; }
 };
 
 const resumenFinanciero = computed(() => {
@@ -1215,12 +1431,30 @@ const editarPago = (pago) => {
   archivoComprobante.value = null; mostrarModalPago.value = true;
 };
 const borrarPago = async (idPago) => {
-  if (confirm("¿Estás seguro de eliminar este registro?")) {
-    try {
-      const respuesta = await fetch(`${API_URL}/pagos/${idPago}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!respuesta.ok) throw new Error("Error al eliminar");
-      alert("Registro financiero eliminado."); await cargarPagos();
-    } catch (error) { alert("No se pudo eliminar el registro."); }
+  const pago = listaPagos.value.find((p) => p.id === idPago);
+
+  const confirmacion = await confirmar({
+    titulo: "¿Eliminar este cobro?",
+    mensaje: pago
+      ? `${pago.concepto || "Sin concepto"} — ${formatoMoneda(pago.monto)}`
+      : `Cobro #${idPago}`,
+    detalle: "Si tiene comprobante, también se borra de la nube. No se puede deshacer.",
+    textoConfirmar: "Sí, eliminar",
+    textoCancelar: "Conservar",
+    tipo: "peligro",
+  });
+  if (!confirmacion) return;
+
+  try {
+    const respuesta = await fetch(`${API_URL}/pagos/${idPago}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(datos.mensaje || "El servidor rechazó la baja.");
+
+    notificar.exito("Cobro eliminado");
+    await cargarPagos();
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo eliminar el cobro", error.message);
   }
 };
 const cerrarModalPago = () => { mostrarModalPago.value = false; archivoComprobante.value = null; };
@@ -1243,7 +1477,6 @@ const guardarPago = async () => {
   formData.append("tipo_cobro", formPago.value.tipo); formData.append("monto", formPago.value.monto);
   formData.append("fecha_vencimiento", formPago.value.fecha_vencimiento); formData.append("estatus", formPago.value.estatus);
   formData.append("notas", formPago.value.notas || ""); formData.append("expediente_id", route.params.id);
-  if (!esActualizacion) formData.append("registrado_por", localStorage.getItem("usuario_id") || 1);
   if (formPago.value.estatus === "Pagado") {
     formData.append("metodo_pago", formPago.value.metodo_pago); formData.append("fecha_pago", formPago.value.fecha_pago);
     if (archivoComprobante.value) formData.append(esActualizacion ? "comprobante_url_pago" : "comprobante_pago", archivoComprobante.value);
@@ -1251,26 +1484,69 @@ const guardarPago = async () => {
 
   try {
     const respuesta = await fetch(url, { method: metodoHTTP, body: formData, headers: { Authorization: `Bearer ${token}` } });
-    if (!respuesta.ok) throw new Error("Error al registrar el pago");
+    if (!respuesta.ok) {
+      const datos = await respuesta.json().catch(() => ({}));
+      throw new Error(datos.mensaje || "El servidor rechazó el cobro.");
+    }
+
+    // Antes esta operación no avisaba nada: el modal se cerraba y el usuario
+    // no sabía si se había guardado.
+    notificar.exito(
+      esActualizacion ? "Cobro actualizado" : "Cobro registrado",
+      `${formPago.value.concepto || "Sin concepto"} · ${formatoMoneda(formPago.value.monto)} · ${formPago.value.estatus}`
+    );
+
     cerrarModalPago(); await cargarPagos();
-  } catch (error) { console.error(error); } finally { guardandoPago.value = false; }
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo guardar el cobro", error.message);
+  } finally { guardandoPago.value = false; }
+};
+
+// Comprobante de un GASTO. Antes esto era un enlace con ?token= en la URL;
+// al cerrar ese hueco de seguridad el enlace dejó de funcionar y devolvía
+// "Acceso denegado". Ahora pide la URL firmada igual que pagos.
+const abrirComprobanteGasto = async (idGasto) => {
+  const ventana = window.open("", "_blank");
+  try {
+    const respuesta = await fetch(`${API_GASTOS}/${idGasto}/comprobante`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!respuesta.ok) throw new Error("No tienes permisos o el archivo no existe");
+
+    const data = await respuesta.json();
+    if (!data.url) throw new Error("El servidor no devolvió el enlace del comprobante");
+
+    if (ventana) { ventana.location.href = data.url; } else { window.open(data.url, "_blank"); }
+  } catch (error) {
+    if (ventana) ventana.close();
+    console.error("Error al abrir el comprobante del gasto:", error);
+    notificar.error("No se pudo abrir el comprobante", error.message);
+  }
 };
 
 const abrirComprobanteSeguro = async (pagoId) => {
+  // La pestaña se abre en el mismo clic; después del await el bloqueador
+  // de ventanas emergentes la cancelaría.
+  const ventana = window.open("", "_blank");
   try {
     const respuesta = await fetch(`${API_URL}/pagos/${pagoId}/comprobante`, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
     if (!respuesta.ok) throw new Error("No tienes permisos o el archivo no existe");
-    const data = await respuesta.json(); window.open(data.url, "_blank");
-  } catch (error) { alert("Hubo un problema al abrir el documento."); }
+    const data = await respuesta.json();
+    if (!data.url) throw new Error("El servidor no devolvió el enlace del comprobante");
+    if (ventana) { ventana.location.href = data.url; } else { window.open(data.url, "_blank"); }
+  } catch (error) {
+    if (ventana) ventana.close();
+    console.error("Error al abrir el comprobante:", error);
+    notificar.error("No se pudo abrir el comprobante", error.message);
+  }
 };
 
 // === UTILIDADES ===
-const formatearFecha = (fechaString) => {
-  if (!fechaString) return null;
-  const date = new Date(fechaString);
-  return new Date(date.getTime() + Math.abs(date.getTimezoneOffset() * 60000)).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" });
-};
-const formatoMoneda = (monto) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(monto) || 0);
+// Este archivo ya importa utils/Formatos.js arriba: se reusa en vez de
+// mantener una cuarta copia de las mismas funciones.
+const formatearFecha = formato.formatearFecha;
+const formatoMoneda = formato.formatoMoneda;
 const formatoInputDateTime = (fechaISO) => {
   if (!fechaISO) return ""; const date = new Date(fechaISO);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -1283,7 +1559,11 @@ onMounted(async () => {
     if (!respuesta.ok) throw new Error("No se pudo cargar el expediente");
     expediente.value = await respuesta.json();
     await cargarDocumentos(); await cargarPagos(); await cargarCatalogos(); await cargarGastosPorExpediente(); await cargarAudiencias();
-  } catch (error) { alert("Error al cargar los datos del expediente."); regresar(); } finally { cargando.value = false; }
+  } catch (error) {
+    console.error(error);
+    notificar.error("No se pudo abrir el expediente", error.message);
+    regresar();
+  } finally { cargando.value = false; }
 });
 </script>
 

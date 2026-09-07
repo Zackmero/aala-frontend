@@ -61,6 +61,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { API_URL } from '../services/api.js';
+import { notificar } from '../composables/useNotificaciones';
 
 const route = useRoute();
 const router = useRouter();
@@ -84,11 +85,15 @@ const cargarPerfilFiscal = async () => {
     if (res.ok) {
       perfil.value = await res.json();
     } else {
-      alert("No se encontró el perfil fiscal.");
+      notificar.advertencia(
+        "No se encontró el perfil fiscal",
+        "Puede que este cliente todavía no esté dado de alta en contabilidad."
+      );
       regresar();
     }
   } catch (error) {
     console.error("Error al cargar perfil:", error);
+    notificar.error("No se pudo cargar el expediente fiscal", error.message);
   } finally {
     cargando.value = false;
   }

@@ -1,0 +1,28 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16213A"/>
+      <stop offset="100%" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8C77A"/>
+      <stop offset="100%" stop-color="#B8923F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <circle cx="32" cy="32" r="32" fill="url(#bg)"/>
+
+  <!-- scale arm (doubles as the A's crossbar) -->
+  <line x1="13" y1="28" x2="51" y2="28" stroke="url(#brass)" stroke-width="3.4" stroke-linecap="round"/>
+
+  <!-- pans as solid weighted discs, bold enough to survive 16px -->
+  <circle cx="13" cy="37" r="5.4" fill="url(#brass)"/>
+  <circle cx="51" cy="37" r="5.4" fill="url(#brass)"/>
+
+  <!-- the letter A, bold slab, legs forming the fulcrum -->
+  <path d="M32 12 L50 52 L41.5 52 L37.5 43 L26.5 43 L22.5 52 L14 52 Z"
+        fill="url(#brass)"/>
+  <!-- subtract inner triangle notch for the A counter -->
+  <path d="M32 24.5 L36.2 36.5 L27.8 36.5 Z" fill="#0B1220"/>
+</svg>

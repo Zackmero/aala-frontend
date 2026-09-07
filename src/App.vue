@@ -16,6 +16,12 @@
       <Footer />
     </div>
   </div>
+
+  <!-- Avisos y confirmaciones del sistema.
+       Van fuera de las dos ramas de arriba para que también funcionen en la
+       pantalla de login, y se montan una sola vez para toda la aplicación. -->
+  <Notificaciones />
+  <DialogoConfirmacion />
 </template>
 
 <script setup>
@@ -23,6 +29,8 @@ import { useRoute } from 'vue-router';
 import Sidebar from './components/Sidebar.vue';
 import Navbar from './components/Navbar.vue';
 import Footer from './components/Footer.vue';
+import Notificaciones from './components/Notificaciones.vue';
+import DialogoConfirmacion from './components/DialogoConfirmacion.vue';
 
 const route = useRoute();
 </script>

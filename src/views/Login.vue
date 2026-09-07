@@ -55,6 +55,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { API_URL } from "../services/api.js";
+import { notificar } from "../composables/useNotificaciones";
 
 const email = ref("");
 const password = ref("");
@@ -82,6 +83,8 @@ const handleLogin = async () => {
       localStorage.setItem("rol", data.rol); // <-- Corregido
       localStorage.setItem("nombre", data.nombre);
 
+      notificar.exito(`Bienvenido, ${data.nombre || "usuario"}`, "Sesión iniciada correctamente.");
+
       // 2. Redireccionamos leyendo la propiedad directa
       if (data.rol === "abogado") {
         // <-- Corregido
@@ -89,12 +92,25 @@ const handleLogin = async () => {
       } else {
         router.push("/mi-portal");
       }
+    } else if (res.status === 429) {
+      // El backend limita los intentos fallidos: hay que decirlo, no dejar
+      // al usuario adivinando por qué de pronto no entra.
+      notificar.advertencia(
+        "Demasiados intentos fallidos",
+        data.mensaje || "Espera unos minutos antes de volver a intentarlo."
+      );
     } else {
-      alert(data.mensaje);
+      notificar.error(
+        "No pudimos iniciar tu sesión",
+        data.mensaje || "Revisa que el correo y la contraseña sean correctos."
+      );
     }
   } catch (e) {
     console.error("Detalle del error:", e);
-    alert("Error de conexión. Revisa la consola (F12).");
+    notificar.error(
+      "No pudimos conectar con el servidor",
+      "Si acabas de abrir el sistema, puede tardar unos segundos en responder. Vuelve a intentarlo."
+    );
   } finally {
     cargando.value = false;
   }

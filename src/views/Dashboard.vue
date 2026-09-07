@@ -12,13 +12,19 @@
       </div>
     </div>
 
+    <div v-if="errorMensaje" class="aviso-error">
+      <span>⚠️</span>
+      <p>{{ errorMensaje }}</p>
+      <button @click="cargarDashboard" class="btn-reintentar">Reintentar</button>
+    </div>
+
     <!--TODO CARDS DE ESTADISTICAS -->
     <div class="grid-resumen">
       <div class="tarjeta-stat">
         <div class="stat-icon client-icon">👥</div>
         <div class="stat-info">
           <h3>Clientes Registrados</h3>
-          <p class="numero">{{ stats.clientes }}</p>
+          <p class="numero">{{ cargando ? "—" : stats.clientes }}</p>
         </div>
       </div>
 
@@ -26,7 +32,7 @@
         <div class="stat-icon case-icon">📂</div>
         <div class="stat-info">
           <h3>Casos Activos</h3>
-          <p class="numero">{{ stats.casos }}</p>
+          <p class="numero">{{ cargando ? "—" : stats.casos }}</p>
         </div>
       </div>
 
@@ -34,15 +40,20 @@
         <div class="stat-icon hearing-icon">⚖️</div>
         <div class="stat-info">
           <h3>Audiencias (7 días)</h3>
-          <p class="numero">{{ stats.audiencias }}</p>
+          <p class="numero">{{ cargando ? "—" : stats.audiencias }}</p>
         </div>
       </div>
 
       <div class="tarjeta-stat">
         <div class="stat-icon money-icon">💰</div>
         <div class="stat-info">
-          <h3>Ingresos del Mes</h3>
-          <p class="numero">{{ formato.formatoMoneda(stats.ingresos) }}</p>
+          <h3>Cobrado este mes</h3>
+          <p class="numero">
+            {{ cargando ? "—" : formato.formatoMoneda(stats.ingresos) }}
+          </p>
+          <p v-if="!cargando && stats.vencidoPorCobrar > 0" class="stat-nota">
+            {{ formato.formatoMoneda(stats.vencidoPorCobrar) }} vencido por cobrar
+          </p>
         </div>
       </div>
     </div>
@@ -153,11 +164,15 @@ const fechaActual = computed(() => {
 });
 
   // ESTADISTICAS CARDS DASHBOARD
+const cargando = ref(true);
+const errorMensaje = ref("");
+
 const stats = ref({
   clientes: 0,
   casos: 0,
   audiencias: 0,
   ingresos: 0,
+  vencidoPorCobrar: 0,
 });
 
   // ACTIVIDADES RECIENTES
@@ -191,123 +206,101 @@ const actividades = ref([
   // PROXIMOS VENCIMIENTOS
 const vencimientos = ref([]);
 
-// CALCULOS DE ESTADISTICAS DE CARDS
-const numClientes = async () => {
+// RESUMEN DEL DESPACHO
+// Una sola petición en vez de cuatro. Antes cada tarjeta pedía la lista
+// completa y contaba en el navegador, así que "Casos Activos" incluía los
+// cerrados, "Audiencias (7 días)" eran todas las de la historia e "Ingresos
+// del Mes" sumaba todos los cobros, incluidos los que nadie había pagado.
+const cargarResumen = async () => {
   try {
-    const res = await fetch(
-      `${API_URL}/clientes`,
-      {
-        method: "GET",
-        contentType: "application/json",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const res = await fetch(`${API_URL}/dashboard/resumen`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("No se pudo cargar el resumen del despacho");
+
     const data = await res.json();
-    stats.value.clientes = data.length;
+    stats.value = {
+      clientes: data.clientes ?? 0,
+      casos: data.casos ?? 0,
+      audiencias: data.audiencias ?? 0,
+      ingresos: data.ingresos ?? 0,
+      vencidoPorCobrar: data.vencidoPorCobrar ?? 0,
+    };
   } catch (error) {
     console.error(error);
-    alert("Error al obtener numero de clientes.");
+    throw error;
   }
 };
-
-const numCasosActivos = async () => {
-  try {
-    const res = await fetch(
-      `${API_URL}/expedientes`,
-      {
-        method: "GET",
-        contentType: "application/json",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    const data = await res.json();
-    stats.value.casos = data.length;
-  } catch (error) {
-    console.error(error);
-    alert("Error al obtener numero de expedientes.");
-  }
-};
-
-const numAudiencias = async () => {
-  try {
-    const res = await fetch(
-      `${API_URL}/audiencias`,
-      {
-        method: "GET",
-        contentType: "application/json",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    const data = await res.json();
-    stats.value.audiencias = data.length;
-  } catch (error) {
-    console.error(error);
-    alert("Error al obtener numero de audiencias.");
-  }
-};
-
-const numIngresos = async () => {
-  try {
-    const res = await fetch(
-      `${API_URL}/pagos/total`,
-      {
-        method: "GET",
-        contentType: "application/json",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    const data = await res.json();
-    stats.value.ingresos = data.total;
-  } catch (error) {
-    console.error(error);
-    alert("Error al obtener ingresos del mes.");
-  }
-};
-
 // OBTENER PROXIMOS VENCIMIENTOS
 const obtenerVencimientos = async () => {
-  try {
-    const res = await fetch(
-      `${API_URL}/dashboard/proximos-vencimientos`,
-      {
-        method: "GET",
-        contentType: "application/json",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    const data = await res.json();
-    vencimientos.value = data;
-  } catch (error) {
-    console.error(error);
-    alert("Error al obtener próximos vencimientos.");
-  }
+  const res = await fetch(`${API_URL}/dashboard/proximos-vencimientos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("No se pudieron cargar los próximos vencimientos");
+
+  const data = await res.json();
+  vencimientos.value = Array.isArray(data) ? data : [];
 };
 
 const verListaAudiencias = () => {
   router.push({ name: "ListaAudiencias" });
 };
 
+// Las dos peticiones van en paralelo y un solo mensaje en pantalla sustituye
+// a los cinco alert() que salían uno tras otro cuando el servidor no
+// respondía (típico cuando Render acaba de despertar).
+const cargarDashboard = async () => {
+  cargando.value = true;
+  errorMensaje.value = "";
+  try {
+    await Promise.all([cargarResumen(), obtenerVencimientos()]);
+  } catch (error) {
+    errorMensaje.value =
+      "No se pudo cargar la información del despacho. Si acabas de abrir el " +
+      "sistema, el servidor puede tardar unos segundos en responder.";
+  } finally {
+    cargando.value = false;
+  }
+};
+
 onMounted(() => {
   nombreUsuario.value = localStorage.getItem("nombre") || "Usuario";
-  numClientes();
-  numCasosActivos();
-  numAudiencias();
-  numIngresos();
-  obtenerVencimientos();
+  cargarDashboard();
 });
 </script>
 
 <style scoped>
+/* Aviso de error del dashboard */
+.aviso-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  color: #7a271a;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+.aviso-error p { margin: 0; flex: 1; }
+.btn-reintentar {
+  background: #fff;
+  border: 1px solid #fecdca;
+  color: #7a271a;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-reintentar:hover { background: #fee4e2; }
+.stat-nota {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: #b42318;
+  font-weight: 600;
+}
+
 /* ====================================================
    ESTILOS DEL DASHBOARD (Diseño Premium Moderno)
    ==================================================== */

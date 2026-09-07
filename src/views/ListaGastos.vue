@@ -9,11 +9,6 @@
       </div>
     </div>
 
-    <!-- Banner de mensajes de estado -->
-    <div v-if="mensajeEstado" :class="['estado-banner', tipoMensaje]">
-      {{ mensajeEstado }}
-    </div>
-
     <!-- DASHBOARD DE GASTOS -->
     <div class="dashboard-gastos">
       <div class="widget-gasto total">
@@ -121,16 +116,17 @@
               </td>
               <td>
                 <div class="btn-groupacciones">
-                  <!-- Botón para ver el comprobante (AWS) -->
-                  <a
+                  <!-- Comprobante: se pide una URL firmada al backend.
+                       Antes se abría el enlace crudo de S3, que o daba 403
+                       o dejaba el comprobante fiscal accesible sin sesión. -->
+                  <button
                     v-if="gasto.comprobante_url"
-                    :href="assetUrl(gasto.comprobante_url)"
-                    target="_blank"
+                    @click="abrirComprobanteSeguro(gasto.id)"
                     class="btn-accion receipt"
                     title="Ver comprobante adjunto"
                   >
                     👁️
-                  </a>
+                  </button>
                   
                   <!-- Botón para abrir el expediente -->
                   <button
@@ -182,16 +178,17 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-// Importamos assetUrl para los comprobantes de AWS
-import { API_URL, assetUrl } from '../services/api.js'; 
+// Los comprobantes se abren con una URL firmada que pide el backend (ver J-02)
+import { API_URL } from '../services/api.js';
+import { notificar } from '../composables/useNotificaciones';
+import { formatearFecha as formatearFechaBase, formatoMoneda } from '../utils/Formatos.js';
 
 const router = useRouter();
 const API_BASE = `${API_URL}/gastos`;
 const token = localStorage.getItem('token');
 
 const cargando = ref(true);
-const mensajeEstado = ref('');
-const tipoMensaje = ref('success');
+
 
 const filtroBusqueda = ref('');
 const filtroEstatus = ref('');
@@ -217,14 +214,15 @@ const cabeceras = () => ({
   Authorization: `Bearer ${token}`,
 });
 
+// Se mantiene el nombre para no tocar todas las llamadas, pero ahora sale
+// por el sistema de avisos de la aplicación en vez de por un banner propio.
 const mostrarMensaje = (texto, tipo = 'success') => {
-  mensajeEstado.value = texto;
-  tipoMensaje.value = tipo;
+  if (tipo === 'error') return notificar.error(texto);
+  if (tipo === 'advertencia') return notificar.advertencia(texto);
+  return notificar.exito(texto);
 };
 
-const limpiarMensaje = () => {
-  mensajeEstado.value = '';
-};
+const limpiarMensaje = () => {};
 
 const parsearRespuesta = async (respuesta) => {
   if (!respuesta.ok) {
@@ -243,11 +241,13 @@ const normalizarGasto = (gasto = {}) => {
     gasto.abogado_responsable ||
     'Sin abogado';
 
+  // El número del juzgado va primero: al abogado "Expediente 14" no le dice
+  // nada, y no puede buscar por el número con el que identifica el caso.
   const expedienteValor =
-    gasto.expediente ||
-    gasto.expediente_id ||
     gasto.numero_expediente ||
     gasto.numero_expediente_judicial ||
+    gasto.expediente ||
+    gasto.expediente_id ||
     'Sin expediente';
 
   return {
@@ -290,6 +290,30 @@ const irAlExpediente = (id) => {
   router.push(`/expedientes/${id}`);
 };
 
+// Pide al backend una URL firmada y temporal de S3, igual que hace Pagos.
+const abrirComprobanteSeguro = async (idGasto) => {
+  // La pestaña se abre en el mismo clic; si se abriera después del await,
+  // el bloqueador de ventanas emergentes la cancelaría.
+  const ventana = window.open('', '_blank');
+  try {
+    const respuesta = await fetch(`${API_BASE}/${idGasto}/comprobante`, {
+      headers: cabeceras(),
+    });
+    const data = await parsearRespuesta(respuesta);
+    if (!data?.url) throw new Error('El servidor no devolvió el enlace del comprobante');
+
+    if (ventana) {
+      ventana.location.href = data.url;
+    } else {
+      window.open(data.url, '_blank');
+    }
+  } catch (error) {
+    if (ventana) ventana.close();
+    console.error('Error al abrir el comprobante:', error);
+    mostrarMensaje('No se pudo abrir el comprobante.', 'error');
+  }
+};
+
 // Reiniciar la paginación a la página 1 cuando se realiza una búsqueda o se filtra
 watch([filtroBusqueda, filtroEstatus, filtroTipo], () => {
   paginaActual.value = 1;
@@ -325,12 +349,8 @@ const metricas = computed(() => {
   return { total, pendientes, pagados };
 });
 
-const formatearFecha = (fechaString) => {
-  if (!fechaString) return 'Sin fecha';
-  const opciones = { year: 'numeric', month: 'long', day: 'numeric' };
-  const date = new Date(fechaString);
-  return new Date(date.getTime() + Math.abs(date.getTimezoneOffset() * 60000)).toLocaleDateString('es-MX', opciones);
-};
+// Se apoya en utils/Formatos.js y conserva el "Sin fecha" que esperaba la tabla.
+const formatearFecha = (fechaString) => formatearFechaBase(fechaString) || 'Sin fecha';
 
 // PAGINACIÓN
 const totalPaginas = computed(
@@ -352,9 +372,6 @@ const finPaginacion = computed(() => {
   const fin = paginaActual.value * elementosPorPagina.value;
   return fin > gastosFiltrados.value.length ? gastosFiltrados.value.length : fin;
 });
-
-const formatoMoneda = (monto) =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(monto) || 0);
 
 const claseEstatus = (estatus) => {
   if (estatus === 'Pagado') return 'pagado';

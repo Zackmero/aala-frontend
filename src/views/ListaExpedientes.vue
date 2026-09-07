@@ -226,6 +226,7 @@
 import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { API_URL } from "../services/api.js";
+import { notificar } from "../composables/useNotificaciones";
 
 const token = localStorage.getItem("token");
 
@@ -316,15 +317,21 @@ const guardarEdicion = async () => {
       },
     );
 
-    if (!respuesta.ok) throw new Error("Error actualizando");
+    const datos = await respuesta.json().catch(() => ({}));
 
-    alert("Expediente actualizado correctamente");
+    if (!respuesta.ok) {
+      // Aquí llega, entre otros, el 403 de "solo un socio puede reasignar":
+      // antes se perdía y el usuario solo veía "hubo un error".
+      throw new Error(datos.mensaje || "El servidor rechazó la actualización.");
+    }
+
+    notificar.exito("Expediente actualizado", datos.mensaje ? "" : "Los cambios quedaron guardados.");
     mostrarModalEditar.value = false;
 
     cargarExpedientes();
   } catch (error) {
     console.error(error);
-    alert("Hubo un error al actualizar.");
+    notificar.error("No se pudo actualizar el expediente", error.message);
   } finally {
     guardando.value = false;
   }

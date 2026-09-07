@@ -243,6 +243,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from "vue";
 import { API_URL } from "../services/api.js";
+import { notificar, confirmar, avisar } from "../composables/useNotificaciones";
 
 const token = localStorage.getItem("token");
 
@@ -262,7 +263,7 @@ const formDefault = {
   rfc: "",
   curp: "",
   telefono: "",
-  email: "",
+  email: null,
   direccion: "",
   estado_civil: 'Soltero' 
 };
@@ -308,9 +309,11 @@ const obtenerClientes = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
-    clientes.value = await res.json();
+    const datos = await res.json();
+    clientes.value = Array.isArray(datos) ? datos : [];
   } catch (e) {
     console.error(e);
+    notificar.error("No se pudo cargar el directorio de clientes", e.message);
   } finally {
     cargando.value = false;
   }
@@ -338,32 +341,85 @@ const guardarCliente = async () => {
       cerrarModal();
       obtenerClientes();
 
-      if (!editando.value && data.credenciales) {
-        alert(
-          `✅ CLIENTE REGISTRADO CON ÉXITO\n\n` +
-          `Entrégale estos datos al cliente para su portal:\n\n` +
-          `📧 Correo: ${data.credenciales.usuario}\n` +
-          `🔑 Contraseña: ${data.credenciales.password}\n\n` +
-          `(Generada con los primeros 10 dígitos de su CURP)`
+      if (editando.value) {
+        notificar.exito(
+          "Cliente actualizado",
+          data.accesoActualizado
+            ? "También se actualizó su correo de acceso al portal: ahora entra con el correo nuevo y la misma contraseña."
+            : ""
         );
       }
+
+      if (!editando.value && data.credenciales) {
+        if (data.credenciales.sin_email) {
+          // El correo es generado por el sistema: no existe y el cliente no
+          // podría recibir nada ahí. Decirlo, en vez de pedir que lo entregue.
+          await avisar({
+            titulo: "Cliente registrado, pero sin acceso al portal",
+            mensaje:
+              "Como no capturaste un correo, el cliente todavía no puede entrar a su portal.",
+            detalle:
+              "Cuando te dé su correo, edítalo desde la ficha del cliente y el acceso se activa solo.",
+            tipo: "info",
+          });
+        } else {
+          // Las credenciales hay que poder copiarlas, no transcribirlas a mano.
+          await avisar({
+            titulo: "Cliente registrado con éxito",
+            mensaje: "Entrégale estos datos al cliente para que entre a su portal:",
+            detalle: "La contraseña se generó con los primeros 10 caracteres de su CURP.",
+            textoCopiable:
+              `Portal: ${window.location.origin}\n` +
+              `Correo: ${data.credenciales.usuario}\n` +
+              `Contraseña: ${data.credenciales.password}`,
+            textoConfirmar: "Listo",
+          });
+        }
+      } else if (!editando.value) {
+        notificar.exito("Cliente registrado", form.value.nombre_completo);
+      }
     } else {
-      alert("Error del servidor: " + (data.mensaje || "No se pudo guardar el cliente."));
+      notificar.error(
+        "No se pudo guardar el cliente",
+        data.mensaje || "El servidor rechazó los datos."
+      );
     }
   } catch (e) {
-    alert("Error de conexión. Revisa que el Backend esté encendido.");
+    console.error(e);
+    notificar.error(
+      "No pudimos conectar con el servidor",
+      "Revisa tu conexión e inténtalo de nuevo."
+    );
   }
 };
 
 const confirmarEliminar = async (id) => {
-  if (confirm("¿Estás seguro de que deseas eliminar este expediente?")) {
-    await fetch(`${API_URL}/clientes/${id}`, {
+  const cliente = clientes.value.find((c) => c.id === id);
+
+  const confirmacion = await confirmar({
+    titulo: "¿Eliminar este cliente?",
+    mensaje: cliente?.nombre_completo || `Cliente #${id}`,
+    detalle:
+      "Se borra el registro del despacho. Si el cliente tiene expedientes " +
+      "abiertos, la operación será rechazada por la base de datos.",
+    textoConfirmar: "Sí, eliminar",
+    textoCancelar: "Conservar",
+    tipo: "peligro",
+  });
+  if (!confirmacion) return;
+
+  try {
+    const respuesta = await fetch(`${API_URL}/clientes/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(datos.mensaje || "El servidor rechazó la baja.");
+
+    notificar.exito("Cliente eliminado", cliente?.nombre_completo || "");
     obtenerClientes();
+  } catch (error) {
+    notificar.error("No se pudo eliminar el cliente", error.message);
   }
 };
 

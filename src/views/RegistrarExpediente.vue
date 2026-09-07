@@ -192,6 +192,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { API_URL } from "../services/api.js";
+import { notificar } from "../composables/useNotificaciones";
 
 const router = useRouter();
 
@@ -269,14 +270,20 @@ const guardarExpediente = async () => {
       body: JSON.stringify(payload),
     });
 
-    if (!respuesta.ok) throw new Error("Error en el servidor");
+    const dataRespuesta = await respuesta.json().catch(() => ({}));
 
-    const dataRespuesta = await respuesta.json();
-    alert(`¡Éxito! Se ha creado el ${dataRespuesta.titulo}`);
+    if (!respuesta.ok) {
+      throw new Error(dataRespuesta.mensaje || "El servidor rechazó el expediente.");
+    }
+
+    notificar.exito(
+      "Expediente creado",
+      `Se abrió el ${dataRespuesta.titulo || "expediente"}.`
+    );
     router.push("/expedientes");
   } catch (error) {
     console.error("Error guardando:", error);
-    alert("Hubo un problema al guardar el expediente.");
+    notificar.error("No se pudo abrir el expediente", error.message);
   } finally {
     cargando.value = false;
   }
