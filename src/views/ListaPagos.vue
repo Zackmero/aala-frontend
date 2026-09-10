@@ -267,7 +267,7 @@ import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 // Eliminamos assetUrl ya que ahora usamos la ruta segura a través del backend
 import { API_URL } from "../services/api.js";
-import { formatearFecha, formatoMoneda } from "../utils/Formatos.js";
+import { formatearFecha, formatoMoneda, aFechaLocal } from "../utils/Formatos.js";
 import { notificar } from "../composables/useNotificaciones";
 const token = localStorage.getItem("token");
 
@@ -319,8 +319,8 @@ const cerrarModalDetallePago = () => {
 // convierte a UTC: en México (UTC-6) un cobro que vence hoy se marcaba como
 // atrasado desde las 6 de la tarde. Es el dato que dispara la cobranza.
 const soloFecha = (valor) => {
-  const d = new Date(valor);
-  if (Number.isNaN(d.getTime())) return null;
+  const d = valor instanceof Date ? valor : aFechaLocal(valor);
+  if (!d || Number.isNaN(d.getTime())) return null;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 };
 

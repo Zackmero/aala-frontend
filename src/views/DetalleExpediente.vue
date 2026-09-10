@@ -1114,7 +1114,7 @@ const gastoSeleccionado = ref(null);
 
 const formGasto = ref({
   id: null, abogado_id: "", concepto: "", categoria: "", monto: "",
-  fecha: new Date().toISOString().split("T")[0], estatus: "Pendiente", notas: "", comprobante_url: null,
+  fecha: formato.hoyInputDate(), estatus: "Pendiente", notas: "", comprobante_url: null,
 });
 
 const tiposGastosDisponibles = ["Viáticos", "Copias", "Aseo", "Servicios de oficina", "Otros gastos"];
@@ -1185,7 +1185,7 @@ const cargarGastosPorExpediente = async () => {
 const abrirNuevoGasto = () => {
   formGasto.value = {
     id: null, abogado_id: "", tipo: "Viáticos",
-    concepto: "", monto: "", fecha: new Date().toISOString().split("T")[0], estatus: "Pendiente",
+    concepto: "", monto: "", fecha: formato.hoyInputDate(), estatus: "Pendiente",
     metodo_pago: "", notas: "",
   };
   archivoComprobante.value = null;
@@ -1368,7 +1368,7 @@ const editarAudiencia = (audiencia) => {
   const esPredefinido = opciones.includes(audiencia.lugar);
   const listaAbogados = abogadosDisponibles.value.map((a) => ({ id: a.id, nombre: resolverNombreAbogado(a) }));
   formAudiencia.value = {
-    id: audiencia.id, expediente_id: audiencia.expediente_id, titulo: audiencia.titulo, fecha_hora: formatoInputDateTime(audiencia.fecha_hora),
+    id: audiencia.id, expediente_id: audiencia.expediente_id, titulo: audiencia.titulo, fecha_hora: formato.formatoInputDateTime(audiencia.fecha_hora),
     lugar_seleccion: esPredefinido ? audiencia.lugar : "Otro", lugar_otro: esPredefinido ? "" : audiencia.lugar, estatus: audiencia.estatus,
     abogado_id: listaAbogados.find((a) => resolverNombreAbogado(a) === audiencia.abogado)?.id || "",
     resultado: audiencia.resultado || "", notas_preparacion: audiencia.notas_preparacion || "",
@@ -1379,12 +1379,17 @@ const editarAudiencia = (audiencia) => {
 const guardarAudiencia = async () => {
   guardandoAudiencia.value = true;
   const lugarFinal = formAudiencia.value.lugar_seleccion === "Otro" ? formAudiencia.value.lugar_otro : formAudiencia.value.lugar_seleccion;
-  const fechaMysql = new Date().toISOString().slice(0, 19).replace("T", " ");
+  // Hora local de México tal cual, sin pasar por toISOString() (que la
+  // convierte a UTC y desfasa la hora de creación según la hora del día).
+  const fechaMysql = formato.ahoraMysqlDateTime();
+  // El input datetime-local entrega "YYYY-MM-DDTHH:MM"; lo pasamos al
+  // formato "YYYY-MM-DD HH:MM:SS" que espera la columna DATETIME de MySQL.
+  const fechaHoraMysql = formAudiencia.value.fecha_hora.replace("T", " ") + ":00";
 
   const payload = {
-    expediente_id: Number(route.params.id), titulo: formAudiencia.value.titulo, fecha_hora: formAudiencia.value.fecha_hora,
+    expediente_id: Number(route.params.id), titulo: formAudiencia.value.titulo, fecha_hora: fechaHoraMysql,
     lugar: lugarFinal, estatus: formAudiencia.value.estatus, abogado_id: Number(formAudiencia.value.abogado_id),
-    notas_preparacion: formAudiencia.value.notas_preparacion || null, resultado: formAudiencia.value.resultado || null, fecha_creacion: fechaMysql, 
+    notas_preparacion: formAudiencia.value.notas_preparacion || null, resultado: formAudiencia.value.resultado || null, fecha_creacion: fechaMysql,
   };
   const url = formAudiencia.value.id ? `${API_URL}/audiencias/${formAudiencia.value.id}` : `${API_URL}/audiencias`;
   const metodo = formAudiencia.value.id ? "PUT" : "POST";
@@ -1427,7 +1432,7 @@ const abrirNuevoPago = () => {
   archivoComprobante.value = null; mostrarModalPago.value = true;
 };
 const editarPago = (pago) => {
-  formPago.value = { id: pago.id, concepto: pago.concepto, tipo: pago.tipo, monto: pago.monto, fecha_vencimiento: formatoInputDate(pago.fecha_vencimiento), estatus: pago.estatus, metodo_pago: pago.metodo_pago || "", fecha_pago: formatoInputDate(pago.fecha_pago) || formatoInputDate(new Date()), notas: pago.notas || "", };
+  formPago.value = { id: pago.id, concepto: pago.concepto, tipo: pago.tipo, monto: pago.monto, fecha_vencimiento: formatoInputDate(pago.fecha_vencimiento), estatus: pago.estatus, metodo_pago: pago.metodo_pago || "", fecha_pago: formatoInputDate(pago.fecha_pago) || formato.hoyInputDate(), notas: pago.notas || "", };
   archivoComprobante.value = null; mostrarModalPago.value = true;
 };
 const borrarPago = async (idPago) => {
@@ -1547,10 +1552,6 @@ const abrirComprobanteSeguro = async (pagoId) => {
 // mantener una cuarta copia de las mismas funciones.
 const formatearFecha = formato.formatearFecha;
 const formatoMoneda = formato.formatoMoneda;
-const formatoInputDateTime = (fechaISO) => {
-  if (!fechaISO) return ""; const date = new Date(fechaISO);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
 const regresar = () => router.push("/expedientes");
 
 onMounted(async () => {
