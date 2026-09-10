@@ -315,8 +315,8 @@ const columnas = [
 // Todo el filtrado trabaja con el día local, nunca con toISOString(), que
 // convierte a UTC y en México desplaza las fechas un día.
 const inicioDelDia = (valor) => {
-  const d = valor instanceof Date ? valor : new Date(valor);
-  if (Number.isNaN(d.getTime())) return null;
+  const d = valor instanceof Date ? valor : formato.aFechaLocal(valor);
+  if (!d || Number.isNaN(d.getTime())) return null;
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 };
 
@@ -429,7 +429,8 @@ const dentroDelRango = (audiencia) => {
     case "hoy": return dias === 0;
     case "semana": return dias >= 0 && dias <= 7;
     case "mes": {
-      const f = new Date(audiencia.fecha_hora);
+      const f = formato.aFechaLocal(audiencia.fecha_hora);
+      if (!f) return false;
       const hoy = new Date();
       return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
     }
@@ -449,8 +450,8 @@ const audienciasFiltradas = computed(() => {
   // pasado, de lo más reciente hacia atrás.
   const ascendente = rangoActivo.value !== "pasadas";
   return [...lista].sort((a, b) => {
-    const fa = new Date(a.fecha_hora).getTime() || 0;
-    const fb = new Date(b.fecha_hora).getTime() || 0;
+    const fa = formato.aFechaLocal(a.fecha_hora)?.getTime() || 0;
+    const fb = formato.aFechaLocal(b.fecha_hora)?.getTime() || 0;
     return ascendente ? fa - fb : fb - fa;
   });
 });
